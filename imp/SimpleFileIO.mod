@@ -17,7 +17,7 @@ END;
 
 TYPE CStdIOFile = UNSAFE.ADDRESS;
 
-TYPE CStdIOMode = ARRAY [0..1] OF CHAR;
+TYPE CStdIOMode = ARRAY 2 OF CHAR;
 
 
 (* TO DO : port to R10 using FFI pragma *)
@@ -129,7 +129,7 @@ BEGIN
     
     IF result = 0 THEN
       s := Status.Success;
-      DISPOSE(f)
+      RELEASE(f)
     
     ELSE (* result # 0 *)
       (* TO DO : error handling *)
@@ -151,7 +151,7 @@ END SetPos;
 
 
 PROCEDURE ReadOctets
-  ( f : File; VAR buffer : ARRAY OF BYTE; VAR bytesRead : LONGCARD );
+  ( f : File; VAR buffer : ARRAY OF OCTET; VAR bytesRead : LONGCARD );
 (* Reads contents starting at the current reading position of file f into
    buffer until either buffer is full or eof is reached. The number of octets
    actually read is passed in bytesRead. *)
@@ -194,7 +194,7 @@ END GetPos;
 (* Operations common to modes write and append *)
 
 PROCEDURE WriteOctets
-  ( f : File; buffer : ARRAY OF BYTE; VAR bytesWritten : LONGCARD );
+  ( f : File; CONST buffer : ARRAY OF OCTET; VAR bytesWritten : LONGCARD );
 (* Writes the contents of buffer at the current writing position to file f.
    The number of bytes actually written is passed in bytesWritten. *)
 
@@ -204,7 +204,7 @@ END WriteOctets;
 
 
 PROCEDURE WriteChars
-  ( f : File; buffer : ARRAY OF CHAR; VAR charsWritten : LONGCARD );
+  ( f : File; CONST buffer : ARRAY OF CHAR; VAR charsWritten : LONGCARD );
 (* Writes the contents of buffer up to and excluding the first ASCII NUL
    character code at the current writing position to file f.
    The number of characters actually written is passed in charsWritten. *)
