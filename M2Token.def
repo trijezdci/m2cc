@@ -1,0 +1,212 @@
+(*!m2r10*) (* Copyright (c) 2015 B.Kowarsch. All rights reserved. *)
+
+DEFINITION MODULE M2Token;
+
+(* Token Definitions for Modula-2 R10 Bootstrap Compiler *)
+
+TYPE M2Token =
+  ( Invalid,         (* 0 *)
+  
+  (* Reserved Words *)
+    Alias,           (* 1 *)
+    And,             (* 2 *)
+    Arglist,         (* 3 *)
+    Array,           (* 4 *)
+    Bare,            (* 5 *)
+    Begin,           (* 6 *)
+    Blueprint,       (* 7 *)
+    By,              (* 8 *)
+    Case,            (* 9 *)
+    Const,          (* 10 *)
+    Copy,           (* 11 *)
+    Definition,     (* 12 *)
+    Div,            (* 13 *)
+    Do,             (* 14 *)
+    Else,           (* 15 *)
+    Elsif,          (* 16 *)
+    End,            (* 17 *)
+    Exit,           (* 18 *)
+    For,            (* 19 *)
+    From,           (* 20 *)
+    Genlib,         (* 21 *)
+    If,             (* 22 *)
+    Implementation, (* 23 *)
+    Import,         (* 24 *)
+    In,             (* 25 *)
+    Loop,           (* 26 *)
+    Mod,            (* 27 *)
+    Module,         (* 28 *)
+    New,            (* 29 *)
+    None,           (* 30 *)
+    Not,            (* 31 *)
+    Of,             (* 32 *)
+    Opaque,         (* 33 *)
+    Or,             (* 34 *)
+    Pointer,        (* 35 *)
+    Procedure,      (* 36 *)
+    Record,         (* 37 *)
+    Referential,    (* 38 *)
+    Release,        (* 39 *)
+    Repeat,         (* 40 *)
+    Retain,         (* 41 *)
+    Return,         (* 42 *)
+    Set,            (* 43 *)
+    Then,           (* 44 *)
+    To,             (* 45 *)
+    Type,           (* 46 *)
+    Until,          (* 47 *)
+    Var,            (* 48 *)
+    While,          (* 49 *)
+    Yield,          (* 50 *)
+    
+  (* Dual-Use RW-Identifiers *)
+  
+  (* Constant Bindable Identifiers *)
+    Tflags,         (* 51 *)
+    Tdyn,           (* 52 *)
+    Trefc,          (* 53 *)
+    Tordered,       (* 54 *)
+    Tsorted,        (* 55 *)
+    Tlimit,         (* 56 *)
+    Tscalar,        (* 57 *)
+    Tmax,           (* 58 *)
+    Tmin,           (* 59 *)
+    
+  (* Procedure Bindable Identifiers *)
+    Abs,            (* 60 *)
+    Length,         (* 61 *)
+    Exists,         (* 62 *)
+    Seek,           (* 63 *)
+    Subset,         (* 64 *)
+    Read,           (* 65 *)
+    Readnew,        (* 66 *)
+    Write,          (* 67 *)
+    Writef,         (* 68 *)
+    Sxf,            (* 69 *)
+    Val,            (* 70 *)
+    Count,          (* 71 *)
+    Value,          (* 72 *)
+    Store,          (* 73 *)
+    Insert,         (* 74 *)
+    Remove,         (* 75 *)
+    Append,         (* 76 *)
+    
+  (* Other Dual-Use Identifiers *)
+    Address,        (* 77 *)
+    Cast,           (* 78 *)
+    Coroutine,      (* 79 *)
+    Octet,          (* 80 *)
+    Tliteral,       (* 81 *)
+    Unsafe,         (* 82 *)
+    
+  (* Any Other Identifiers *)
+    OtherIdent,     (* 83 *)
+  
+  (* Literals *)
+    WholeNumber,    (* 84 *)
+    RealNumber,     (* 85 *)
+    Character,      (* 86 *)
+    QuotedString,   (* 87 *)
+    ChevronText,    (* 88 *)
+    
+  (* Punctuation *)
+    Dot,            (* 89 *)
+    Comma,          (* 90 *)
+    Colon,          (* 91 *)
+    Semicolon,      (* 92 *)
+    VerticalBar,    (* 93 *)
+    Deref,          (* 94 *)
+    Tilde,          (* 95 *)
+    DotDot,         (* 96 *)
+    Assign,         (* 97 *)
+    PlusPlus,       (* 98 *)
+    MinusMinus,     (* 99 *)
+    OneWayDep,     (* 100 *)
+    MutualDep,     (* 101 *)
+    MutualExcl,    (* 102 *)
+    PlusMinus,     (* 103 *)
+    
+  (* Paired Delimiters *)
+    LParen,        (* 104 *)
+    RParen,        (* 105 *)
+    LBracket,      (* 106 *)
+    RBracket,      (* 107 *)
+    LBrace,        (* 108 *)
+    RBrace,        (* 109 *)
+    
+  (* Operators *)
+    Plus,          (* 110 *)   (* also used as punctuation *)
+    Minus,         (* 111 *)   (* also used as punctuation *)
+    Asterisk,      (* 112 *)   (* also used as punctuation *)
+    AsterDot,      (* 113 *)
+    RealDiv,       (* 114 *)
+    SetDiff,       (* 115 *)
+    Equal,         (* 116 *)
+    NotEqual,      (* 117 *)
+    Greater,       (* 118 *)
+    GreaterOrEq,   (* 129 *)
+    Less,          (* 120 *)
+    LessOrEq,      (* 121 *)
+    Concat,        (* 122 *)
+    Identity,      (* 123 *)
+    TypeConv,      (* 124 *)
+    
+  (* Comments & Pragmas *)
+    Comment,       (* 125 *)
+    Pragma,        (* 126 *)
+  
+  (* End Of File Marker *)
+    EOF );         (* 127 *)
+
+
+(* Token Subranges *)
+
+TYPE
+  ResWords = [Alias..Yield] OF M2Token;
+  ProcBindables = [Abs..Writef] OF M2Token;
+  ConstBindables = [Tbase..Trefc] OF M2Token;
+  Identifiers = [Abs..OtherIdent] OF M2Token;
+  Numbers = [WholeNumber..RealNumber] OF M2Token;
+  CharsAndStrings = [CharCode..QuotedString] OF M2Token;
+  Punctuation = [Dot..Asterisk] OF M2Token;
+  Operators = [Plus..Identity] OF M2Token;
+  CommentsAndPragmas = [LineComment..Pragma] OF M2Token;
+
+
+(* Functions To Determine Token Classification *)
+
+PROCEDURE isResWord ( t : M2Token ) : BOOLEAN;
+ (* Returns TRUE if t is a reserved word, otherwise FALSE. *)
+
+PROCEDURE isIdentifier ( t : M2Token ) : BOOLEAN;
+ (* Returns TRUE if t is an identifier, otherwise FALSE. *)
+
+PROCEDURE isConstBindableIdent ( t : M2Token ) : BOOLEAN;
+ (* Returns TRUE if t is a constant bindable identifier, otherwise FALSE. *)
+
+PROCEDURE isProcBindableIdent ( t : M2Token ) : BOOLEAN;
+ (* Returns TRUE if t is a procedure bindable identifier, otherwise FALSE. *)
+
+PROCEDURE isNumber ( t : M2Token ) : BOOLEAN;
+ (* Returns TRUE if t is a number literal, otherwise FALSE. *)
+
+PROCEDURE isCharOrString ( t : M2Token ) : BOOLEAN;
+ (* Returns TRUE if t is a character or string, otherwise FALSE. *)
+
+PROCEDURE isOperL1 ( t : M2Token ) : BOOLEAN;
+ (* Returns TRUE if t is a level-1 operator, otherwise FALSE. *)
+
+PROCEDURE isOperL2 ( t : M2Token ) : BOOLEAN;
+ (* Returns TRUE if t is a level-2 operator, otherwise FALSE. *)
+
+PROCEDURE isOperL3 ( t : M2Token ) : BOOLEAN;
+ (* Returns TRUE if t is a level-3 operator, otherwise FALSE. *)
+
+PROCEDURE isComment ( t : M2Token ) : BOOLEAN;
+ (* Returns TRUE if t is a comment, otherwise FALSE. *)
+
+PROCEDURE isPragma ( t : M2Token ) : BOOLEAN;
+ (* Returns TRUE if t is a pragma, otherwise FALSE. *)
+
+
+END M2Token.
