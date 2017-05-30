@@ -55,7 +55,8 @@ TYPE CStdIOMode = ARRAY 2 OF CHAR;
 (* Operations common to all modes *)
 
 PROCEDURE Open
-  ( VAR f : File; filename : ARRAY OF CHAR; mode : Mode; VAR s : Status );
+  ( VAR f : File;
+    CONST filename : ARRAY OF CHAR; mode : Mode; VAR s : Status );
 (* Opens file filename in mode. Passes file handle in f and status in s. *)
 
 VAR
