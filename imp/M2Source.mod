@@ -10,12 +10,12 @@ IMPORT ASCII, SimpleFileIO, M2Params, M2LexTab;
 TYPE Source = POINTER TO SourceDescriptor;
 
 TYPE SourceDescriptor = RECORD
-  index,                   (* index of lookahead position in source buffer *)
-  endPos,                  (* index of end position in source buffer *)
-  lexPos : CARDINAL;       (* index of marked position in source buffer *)
-  buffer : SourceBuffer;   (* source buffer with entire source *)
-  line : LineCounter;      (* line counter for lookahead position *)
-  column : ColumnCounter   (* column counter for lookahead position *)
+  index,                          (* lookahead index in source buffer *)
+  endPos,                         (* end position index in source buffer *)
+  lexPos : CARDINAL;              (* marked position index in source buffer *)
+  buffer : SourceBuffer;          (* source buffer with entire source *)
+  line : M2Params.LineCounter;    (* line counter for lookahead position *)
+  column : M2Params.ColumnCounter (* column counter for lookahead position *)
 END;
 
 TYPE SourceBuffer = ARRAY M2Params.MaxSourceFileSize + 1 OF CHAR;
@@ -138,7 +138,7 @@ BEGIN
   source^.line := 1; source^.column := 1;
   
   (* pass back status and source *)
-  status := success;
+  status := Status.Success;
   s := source;
 
   RETURN  
@@ -468,7 +468,7 @@ BEGIN
   END;
   
   RELEASE(s);
-  status := success;
+  status := Status.Success;
   s := NIL;
   
   RETURN
