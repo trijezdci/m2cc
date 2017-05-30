@@ -6,10 +6,6 @@ IMPLEMENTATION MODULE M2Source;
 
 IMPORT ASCII, SimpleFileIO, M2Params, M2LexTab;
 
-//FROM M2Params IMPORT MaxSourceFileSize;
-
-//FROM M2LexTab IMPORT store;
-
 
 TYPE Source = POINTER TO SourceDescriptor;
 
