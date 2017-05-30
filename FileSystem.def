@@ -1,0 +1,54 @@
+(*!m2r10*) (* Copyright (c) 2015 B.Kowarsch. All rights reserved. *)
+
+DEFINITION MODULE FileSystem;
+
+(* File System Access library *)
+
+
+TYPE Access = ( Read, Write, Execute );
+
+TYPE AccessFlags = SET OF Access;
+
+TYPE Permissions = RECORD
+  owner, group, world : AccessFlags;
+END;
+
+TYPE Timestamp = RECORD
+  year : [1970..9999] OF CARDINAL;
+  month : [1..12] OF CARDINAL;
+  day : [1..31] OF CARDINAL;
+  hour : [0..23] OF CARDINAL;
+  minute,
+  second : [0..59] OF CARDINAL;
+  millisec : [0..999] OF CARDINAL
+END;
+
+
+(* Operations *)
+
+PROCEDURE fileExists ( CONST path : ARRAY OF CHAR ) : BOOLEAN;
+
+PROCEDURE isDirectory ( CONST path : ARRAY OF CHAR ) : BOOLEAN;
+
+PROCEDURE GetFileSize
+  ( CONST path : ARRAY OF CHAR; VAR size : LONGCARD; VAR s : Status );
+
+PROCEDURE GetPermissions
+  ( CONST path : ARRAY OF CHAR; VAR p : Permissions; VAR s : Status );
+
+PROCEDURE GetCreationTimeStamp
+  ( CONST path : ARRAY OF CHAR; VAR ts : Timestamp; VAR s : Status );
+
+PROCEDURE GetModificationTimeStamp
+  ( CONST path : ARRAY OF CHAR; VAR ts : Timestamp; VAR s : Status );
+
+PROCEDURE CreateFile ( CONST path : ARRAY OF CHAR; VAR s : Status );
+
+PROCEDURE RemoveFile ( CONST path : ARRAY OF CHAR; VAR s : Status );
+
+PROCEDURE CreateDir ( CONST path : ARRAY OF CHAR; VAR s : Status );
+
+PROCEDURE RemoveDir ( CONST path : ARRAY OF CHAR; VAR s : Status );
+
+
+END FileSystem.
