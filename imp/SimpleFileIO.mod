@@ -4,6 +4,8 @@ IMPLEMENTATION MODULE SimpleFileIO;
 
 (* Low Level File IO library *)
 
+IMPORT UNSAFE;
+
 
 TYPE File = POINTER TO FileDescriptor;
 
@@ -13,17 +15,10 @@ TYPE FileDescriptor = RECORD
   status : Status
 END;
 
-TYPE CStdIOFile = ADDRESS;
+TYPE CStdIOFile = UNSAFE.ADDRESS;
 
 TYPE CStdIOMode = ARRAY [0..1] OF CHAR;
 
-
-(* from DEFINITION module
-
-TYPE Mode = ( read, write, append );
-
-TYPE Status = ( success, failure );
-*)
 
 (* TO DO : port to R10 using FFI pragma *)
 
@@ -71,9 +66,9 @@ BEGIN
   
   (* compose C file mode string *)
   CASE mode OF
-    read : fmode[0] := "r";
-  | write : fmode[0] := "w";
-  | append : fmode[0] := "a"
+  | Read : fmode[0] := "r";
+  | Write : fmode[0] := "w";
+  | Append : fmode[0] := "a"
   END; (* CASE *)
   fmode[1] := CHR(0);
   
@@ -82,7 +77,7 @@ BEGIN
   
   IF fhandle = NIL THEN
     (* fopen failed *)
-    s := failure;
+    s := Status.Failure;
     RETURN
   END;
   
@@ -90,11 +85,11 @@ BEGIN
   
   IF f = NIL THEN
     (* allocation failed *)
-    s := failure;
+    s := Status.Failure;
     RETURN
   END;
   
-  s := success;
+  s := Status.Success;
   f^.handle := fhandle;
   f^.mode := mode;
   f^.status := s;
@@ -133,7 +128,7 @@ BEGIN
     stdio_fclose(f^.handle, result);
     
     IF result = 0 THEN
-      s := success;
+      s := Status.Success;
       DISPOSE(f)
     
     ELSE (* result # 0 *)
