@@ -32,8 +32,7 @@ TYPE Status =
 
 (* Operations *)
 
-PROCEDURE New
-  ( VAR lexer : Lexer; CONST filename : M2Filename; VAR s : Status );
+PROCEDURE New ( VAR lexer : Lexer; filename : Filename; VAR s : Status );
 (* Create newly allocated and initialised lexer instance associated with
    source file filename.  Passes back the status of the operation in s. *)
 
@@ -47,12 +46,10 @@ PROCEDURE ConsumeSym ( lexer : Lexer );
 PROCEDURE lookaheadSym ( lexer : Lexer ) : Symbol;
 (* Returns the current lookahead symbol without consuming it. *)
 
-PROCEDURE GetPosOfConsumedSym
-  ( lexer : Lexer; VAR line, col : CARDINAL );
+PROCEDURE GetPosOfConsumedSym ( lexer : Lexer; VAR line, col : CARDINAL );
 (* Passes back line and column counters of the last consumed symbol. *)
 
-PROCEDURE GetPosOfLookaheadSym
-  ( lexer : Lexer; VAR line, col : CARDINAL );
+PROCEDURE GetPosOfLookaheadSym ( lexer : Lexer; VAR line, col : CARDINAL );
 (* Passes back line and column counters of the current lookahead symbol. *)
 
 PROCEDURE warnCount ( lexer : Lexer ) : CARDINAL;
