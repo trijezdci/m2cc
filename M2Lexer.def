@@ -10,7 +10,7 @@ IMPORT M2Symbol, Filename;
 
 (* Lexer Type *)
 
-TYPE Lexer = OPAQUE;
+TYPE M2Lexer = OPAQUE;
 
 
 (* Lexer Status *)
@@ -30,14 +30,14 @@ TYPE Status =
 
 (* Constructor *)
 
-PROCEDURE New ( VAR lexer : Lexer; filename : Filename; VAR s : Status );
+PROCEDURE New ( VAR lexer : M2Lexer; filename : Filename; VAR s : Status );
 (* Create newly allocated and initialised lexer instance associated with
    source file filename.  Passes back the status of the operation in s. *)
 
 
 (* Destructor *)
 
-PROCEDURE Release ( VAR lexer : Lexer );
+PROCEDURE Release ( VAR lexer : M2Lexer );
  (* Release lexer instance. Passes back NIL in lexer if successful. *)
 
 
