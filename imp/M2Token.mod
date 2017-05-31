@@ -23,42 +23,42 @@ TYPE
 PROCEDURE isResWord ( t : M2Token ) : BOOLEAN;
  (* Returns TRUE if t is a reserved word, otherwise FALSE. *)
 BEGIN
-  RETURN (t >= TMIN(ResWords) AND (t <= TMAX(ResWords)
+  RETURN (t >= TMIN(ResWords)) AND (t <= TMAX(ResWords))
 END isResWord;
 
 
 PROCEDURE isIdentifier ( t : M2Token ) : BOOLEAN;
  (* Returns TRUE if t is an identifier, otherwise FALSE. *)
 BEGIN
-  RETURN (t >= TMIN(Identifiers) AND (t <= TMAX(Identifiers)
+  RETURN (t >= TMIN(Identifiers) AND t <= TMAX(Identifiers))
 END isResWord;
 
 
 PROCEDURE isConstBindableIdent ( t : M2Token ) : BOOLEAN;
  (* Returns TRUE if t is a constant bindable identifier, otherwise FALSE. *)
 BEGIN
-  RETURN (t >= TMIN(ConstBindables) AND (t <= TMAX(ConstBindables)
+  RETURN (t >= TMIN(ConstBindables) AND t <= TMAX(ConstBindables))
 END isResWord;
 
 
 PROCEDURE isProcBindableIdent ( t : M2Token ) : BOOLEAN;
  (* Returns TRUE if t is a procedure bindable identifier, otherwise FALSE. *)
 BEGIN
-  RETURN (t >= TMIN(ProcBindables) AND (t <= TMAX(ProcBindables)
+  RETURN (t >= TMIN(ProcBindables) AND t <= TMAX(ProcBindables))
 END isResWord;
 
 
 PROCEDURE isNumber ( t : M2Token ) : BOOLEAN;
  (* Returns TRUE if t is a number literal, otherwise FALSE. *)
 BEGIN
-  RETURN (t >= TMIN(Numbers) AND (t <= TMAX(Numbers)
+  RETURN (t >= TMIN(Numbers) AND t <= TMAX(Numbers))
 END isNumber;
 
 
 PROCEDURE isCharOrString ( t : M2Token ) : BOOLEAN;
  (* Returns TRUE if t is a character or string, otherwise FALSE. *)
 BEGIN
-  RETURN (t >= TMIN(CharsAndStrings) AND (t <= TMAX(CharsAndStrings)
+  RETURN (t >= TMIN(CharsAndStrings) AND t <= TMAX(CharsAndStrings))
 END isResWord;
 
 
@@ -66,7 +66,7 @@ PROCEDURE isPunctuation ( t : M2Token ) : BOOLEAN;
  (* Returns TRUE if t is a number literal, otherwise FALSE. *)
 BEGIN
   RETURN
-    (t >= TMIN(NonOpPunctuation) AND (t <= TMAX(NonOpPunctuation) OR
+    (t >= TMIN(NonOpPunctuation) AND t <= TMAX(NonOpPunctuation)) OR
     (t = M2Token.Aster) OR (t = M2Token.Plus) OR (t = M2Token.Minus)
 END isPunctuation;
 
@@ -76,7 +76,7 @@ PROCEDURE isOperL1 ( t : M2Token ) : BOOLEAN;
 BEGIN
   RETURN
     (t = M2Token.In) OR
-    ((t >= TMIN(OperatorsL1) AND (t <= TMAX(OperatorsL1)) OR
+    (t >= TMIN(OperatorsL1) AND t <= TMAX(OperatorsL1))
 END isOperL1;
 
 
@@ -85,7 +85,7 @@ PROCEDURE isOperL2 ( t : M2Token ) : BOOLEAN;
 BEGIN
   RETURN
     (t = M2Token.Or) OR
-    ((t >= TMIN(NonRWOperL2) AND (t <= TMAX(NonRWOperL2))
+    (t >= TMIN(NonRWOperL2) AND t <= TMAX(NonRWOperL2))
 END isOperL2;
 
 
@@ -94,7 +94,7 @@ PROCEDURE isOperL3 ( t : M2Token ) : BOOLEAN;
 BEGIN
   RETURN
     (t = M2Token.And) OR (t = M2Token.Div) OR (t = M2Token.Mod) OR
-    ((t >= TMIN(NonRWOperL2) AND (t <= TMAX(NonRWOperL2))
+    (t >= TMIN(NonRWOperL2) AND t <= TMAX(NonRWOperL2))
 END isOperL3;
 
 
