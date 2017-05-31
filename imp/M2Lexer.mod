@@ -7,17 +7,18 @@ IMPLEMENTATION MODULE M2Lexer;
 IMPORT ASCII, M2Source, M2Token, M2Symbol;
 
 
-(* Lexer Descriptor *)
+(* Lexer Context *)
 
-TYPE Lexer = POINTER TO LexerDescriptor;
+TYPE Context = POINTER TO ContextDescriptor;
 
-TYPE LexerDescriptor = RECORD
-  source : M2Source;
-  status : Status;
+TYPE ContextDescriptor = RECORD
+  (* instance vars *)
+  source     : Source;
   nextSymbol : M2Symbol;
-  errorCount,
-  warnCount : CARDINAL;
-END;
+  warnings,
+  errors     : CARDINAL;
+  lastStatus : Status
+END; (* ContextDescriptor *)
 
 
 (* Operations *)
@@ -39,6 +40,7 @@ END;
 PROCEDURE New ( VAR lexer : Lexer; filename : Filename; VAR s : Status );
 
 VAR
+  context : Context;
   sourceStatus : M2Source.Status;
 
 BEGIN
@@ -49,26 +51,46 @@ BEGIN
     RETURN
   END;
   
-  (* allocate a lexer instance *)
-  NEW(lexer);
-  IF lexer = NIL THEN
-    status := Status.UnableToAllocate;
+  (* allocate context *)
+  NEW context;
+  IF context = NIL THEN
+    s := Status.UnableToAllocate;
     RETURN
   END;
   
-  (* initialise source *)
+  (* initialise context *)
+  context^.source := source;
+  context^.warnCount := 0;
+  context^.errorCount := 0;
+  context^.lastStatus := Status.Success;
+  
+  (* allocate a lexer instance *)
+  NEW lexer;
+  IF lexer = NIL THEN
+    s := Status.UnableToAllocate;
+    RELEASE context;
+    RETURN
+  END;
+  
+  (* initialise lexer *)
+  lexer^.context := context;
+  lexer^.nextSym := nextSym;
+  lexer^.consumeSym := consumeSym;
+  lexer^.warnCount := warnCount;
+  lexer^.errorCount := errorCount;
+  lexer^.status := status;
+    
+  (* allocate and initialise source *)
   M2Source.New(lexer^.source, filename, sourceStatus);
   IF sourceStatus # M2Source.Status.Success THEN
-  (* TO DO: status *)
+    s := Status.UnableToAllocate;
+    RELEASE context;
+    RELEASE lexer;
     RETURN
   END;
-  
-  (* initialise error count and status *)
-  errorCount := 0;
-  status := Status.Success;
-  
+    
   (* read the first symbol to be returned *)
-  ConsumeSym(lexer);
+  lexer^.context^.nextSymbol := lexer.consumeSym();
   
   RETURN
 END New;
@@ -93,20 +115,20 @@ PROCEDURE GetSym ( lexer : Lexer; VAR sym, next : M2Symbol );
 BEGIN
   
   (* nextSymbol holds current lookahead, pass it back in sym *)
-  sym := lexer^.nextSymbol;
+  sym := lexer^.context^.nextSymbol;
   
   (* consume the current and read the new lookahead symbol *)
   ConsumeSym(lexer);
   
   (* nextSymbol holds new lookahead, pass it back in next *)
-  next := lexer^.nextSymbol;
+  next := lexer^.context^.nextSymbol;
   
   RETURN
 END GetSym;
 
 
 (* ---------------------------------------------------------------------------
- * procedure ConsumeSym ( lexer )
+ * procedure consumeSym ( lexer )
  *  consumes current lookahead symbol
  * ---------------------------------------------------------------------------
  * pre-conditions:
@@ -119,10 +141,11 @@ END GetSym;
  *  TO DO
  * ---------------------------------------------------------------------------
  *)
-PROCEDURE ConsumeSym ( lexer : Lexer );
+PROCEDURE consumeSym ( self : M2Lexer ) : M2Symbol;
 
 VAR
   ch, next, la2 : CHAR;
+  source : M2Source;
   sym : M2Symbol;
 
 BEGIN
@@ -132,40 +155,42 @@ BEGIN
     RETURN
   END;
   
+  source := self^.context^.source;
+  
   (* all decisions are based on lookahead *)
-  next := M2Source.lookaheadChar(lexer^.source);
+  next := source.lookaheadChar();
   
   (* skip any whitespace, tab and new line *)
-  WHILE NOT M2Source.eof(lexer^.source) AND
+  WHILE NOT source.eof() AND
     ((next = ASCII.SPACE) OR (next = ASCII.TAB) OR (next = ASCII.NEWLINE)) DO
-    M2Source.GetChar(source, ch, next)
+    source.GetChar(ch, next)
   END; (* WHILE *)
   
-  (* TO DO *)
-  M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+  (* get current position *)
+  source.GetLineAndColumn(sym.line, sym.column);
 
   (* check for end-of-file *)
-  IF eof(lexer^.source) THEN
+  IF source.eof() THEN
     sym.token := M2Token.EOF;
     sym.lexeme := 0
   
   (* check for reserved word or identifier *)
   ELSIF ASCII.isLetter(next) OR (next = "_") OR (next = "$") THEN
-    M2Source.MarkLexeme(source, sym.line, sym.column);
+    source.MarkLexeme(source, sym.line, sym.column);
     MatchResWordOrIdent(source, sym.token);
-    M2Source.CopyLexeme(lexer^.source, lexer^.dict, sym.lexeme)
+    source.CopyLexeme(self^.dict, sym.lexeme)
 
   (* check for numeric literal *)
   ELSIF (next >= "0") AND (next <= "9") THEN 
-    M2Source.MarkLexeme(lexer^.source, sym.line, sym.column);
-    MatchNumericLiteral(lexer^.source, sym.token);
-    M2Source.CopyLexeme(lexer^.source, lexer^.dict, sym.lexeme)
+    source.MarkLexeme(sym.line, sym.column);
+    MatchNumericLiteral(source, sym.token);
+    source.CopyLexeme(self^.dict, sym.lexeme)
 
   (* check for quoted literal *)
   ELSIF (next = ASCII.SINGLEQUOTE) OR (next = ASCII.DOUBLEQUOTE) THEN
-    M2Source.MarkLexeme(lexer^.source, sym.line, sym.column);
-    MatchQuotedLiteral(lexer^.source, sym.token);
-    M2Source.CopyLexeme(lexer^.source, lexer^.dict, sym.lexeme)
+    source.MarkLexeme(sym.line, sym.column);
+    MatchQuotedLiteral(source, sym.token);
+    source.CopyLexeme(self^.dict, sym.lexeme)
       
   (* check for any other symbol *)
   ELSE
@@ -173,27 +198,27 @@ BEGIN
     
     (* next symbol is line comment *)
     | "!" :
-        M2Source.MarkLexeme(lexer^.source, sym.line, sym.column);
-        MatchLineComment(lexer^.source, sym.token);
-        M2Source.CopyLexeme(lexer^.source, dict, sym.lexeme)
+        source.MarkLexeme(sym.line, sym.column);
+        MatchLineComment(source, sym.token);
+        source.CopyLexeme(self^.dict, sym.lexeme)
     
     (* next symbol is "#" *)
     | "#" :
-        M2Source.ConsumeChar(lexer^.source);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+        source.ConsumeChar();
+        source.GetLineAndColumn(sym.line, sym.column);
         sym.token := M2Token.NotEqual;
         sym.lexeme := M2Token.lexemeForToken(M2Token.NotEqual)
     
     (* next symbol is "(" or block comment *)
     | "(" :
-        IF M2Source.la2Char(lexer^.source) = "*" THEN (* found block comment *)
-          M2Source.MarkLexeme(lexer^.source, sym.line, sym.column);
-          MatchBlockComment(lexer^.source, sym.token);
-          M2Source.CopyLexeme(lexer^.source, lexer^.dict, sym.lexeme)
+        IF source.la2Char() = "*" THEN (* found block comment *)
+          source.MarkLexeme(sym.line, sym.column);
+          MatchBlockComment(source, sym.token);
+          source.CopyLexeme(self^.dict, sym.lexeme)
         
         ELSE (* found "(" *)
-          M2Source.ConsumeChar(lexer^.source);
-          M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+          source.ConsumeChar();
+          source.GetLineAndColumn(sym.line, sym.column);
           sym.token := M2Token.LParen;
           sym.lexeme := M2Token.lexemeForToken(M2Token.LParen)
           
@@ -201,38 +226,38 @@ BEGIN
     
     (* next symbol is ")" *)
     | ")" :
-        M2Source.ConsumeChar(lexer^.source);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+        source.ConsumeChar();
+        source.GetLineAndColumn(sym.line, sym.column);
         sym.value := M2Token.RParen;
         sym.lexeme := M2Token.lexemeForToken(M2Token.RParen)
     
-    (* next symbol is "*" or "*." *)
+    (* next symbol is "*" or "**" *)
     | "*" :
-        M2Source.GetChar(lexer^.source, ch, next);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+        source.GetChar(ch, next);
+        source.GetLineAndColumn(sym.line, sym.column);
         
-        IF next # "." THEN (* found "*" *)
+        IF next # "*" THEN (* found sole "*" *)
           sym.token := M2Token.Asterisk;
           sym.lexeme := M2Token.lexemeForToken(M2Token.Asterisk)
         
-        ELSE (* found "*." *)
-          M2Source.ConsumeChar(lexer^.source);
-          sym.token := M2Token.AsterDot;
-          sym.lexeme := M2Token.lexemeForToken(M2Token.AsterDot)
+        ELSE (* found "**" *)
+          source.ConsumeChar();
+          sym.token := M2Token.Power;
+          sym.lexeme := M2Token.lexemeForToken(M2Token.Power)
         
-        END (* "*" or "*." *)
+        END (* "*" or "**" *)
     
     (* next symbol is "+" or "++" *)
     | "+" :
-        M2Source.GetChar(lexer^.source, ch, next);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+        source.GetChar(ch, next);
+        source.GetLineAndColumn(sym.line, sym.column);
         
-        IF next # "+" THEN (* found "+" *)
+        IF next # "+" THEN (* found sole "+" *)
           sym.token := M2Token.Plus;
           sym.lexeme := M2Token.lexemeForToken(M2Token.Plus)
         
         ELSE (* found "++" *)
-          M2Source.ConsumeChar(lexer^.source);
+          source.ConsumeChar();
           sym.token := M2Token.PlusPlus;
           sym.lexeme := M2Token.lexemeForToken(M2Token.PlusPlus)
         
@@ -240,71 +265,76 @@ BEGIN
       
     (* next symbol is "," *)
     | "," :
-        M2Source.ConsumeChar(lexer^.source);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+        source.ConsumeChar();
+        source.GetLineAndColumn(sym.line, sym.column);
         sym.token := M2Token.Comma;
         sym.lexeme := M2Token.lexemeForToken(M2Token.Comma)
     
     (* next symbol is "-", "--" or "->" *)
     | "-" :
-        M2Source.GetChar(lexer^.source, ch, next);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+        source.GetChar(ch, next);
+        source.GetLineAndColumn(sym.line, sym.column);
         
         IF next = "-" THEN (* found "--" *)
-          M2Source.ConsumeChar(lexer^.source);
+          source.ConsumeChar(lexer^.source);
           sym.token := M2Token.MinusMinus;
           sym.lexeme := M2Token.lexemeForToken(M2Token.MinusMinus)
         
         ELSIF next = ">" THEN (* found "->" *)
-          M2Source.ConsumeChar(lexer^.source);
+          source.ConsumeChar();
           sym.token := M2Token.RArrow;
           sym.lexeme := M2Token.lexemeForToken(M2Token.RArrow)
         
-        ELSE (* found "-" *)
+        ELSE (* found sole "-" *)
           sym.token := M2Token.Minus;
           sym.lexeme := M2Token.lexemeForToken(M2Token.Minus)
         
         END (* "-", "--" or "->" *)
     
-    (* next symbol is "." or ".." *)
+    (* next symbol is ".", ".." or ".*" *)
     | "." :
-        M2Source.GetChar(lexer^.source, ch, next);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+        source.GetChar(ch, next);
+        source.GetLineAndColumn(sym.line, sym.column);
         
-        IF next # "." THEN
-          sym.token := M2Token.Dot;
-          sym.lexeme := M2Token.lexemeForToken(M2Token.Dot)
-        
-        ELSE (* found ".." *)
-          M2Source.ConsumeChar(lexer^.source);
+        IF next = "." THEN (* found ".." *)
+          source.ConsumeChar();
           sym.token := M2Token.DotDot;
           sym.lexeme := M2Token.lexemeForToken(M2Token.DotDot)
         
-        END (* "." and ".." *)
+        ELSIF next = "*" THEN (* found ".*" *)
+          source.ConsumeChar();
+          sym.token := M2Token.DotStar;
+          sym.lexeme := M2Token.lexemeForToken(M2Token.DotStar)
+        
+        ELSE (* found sole "." *)
+          sym.token := M2Token.Dot;
+          sym.lexeme := M2Token.lexemeForToken(M2Token.Dot)
+        
+        END (* ".", ".." and ".*" *)
       
     (* next symbol is "/" *)
     | "/" :
-        M2Source.ConsumeChar(lexer^.source);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+        source.ConsumeChar();
+        source.GetLineAndColumn(sym.line, sym.column);
         sym.token := M2Token.RealDiv;
         sym.lexeme := M2Token.lexemeForToken(M2Token.RealDiv)
     
     (* next symbol is ":", ":=" or "::" *)
     | ":" :
-        M2Source.GetChar(lexer^.source, ch, next);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+        source.GetChar(ch, next);
+        source.GetLineAndColumn(sym.line, sym.column);
         
         IF next = "=" THEN (* found ":=" *)
-          M2Source.ConsumeChar(lexer^.source);
+          source.ConsumeChar();
           sym.token := M2Token.Assign;
           sym.lexeme := M2Token.lexemeForToken(M2Token.Assign)
         
         ELSIF next = ":" THEN (* found "::" *)
-          M2Source.ConsumeChar(lexer^.source);
+          source.ConsumeChar();
           sym.token := M2Token.TypeConv;
           sym.lexeme := M2Token.lexemeForToken(M2Token.TypeConv)
         
-        ELSE (* found ":" *)
+        ELSE (* found sole ":" *)
           sym.token := M2Token.Colon;
           sym.lexeme := M2Token.lexemeForToken(M2Token.Colon)
         
@@ -312,31 +342,31 @@ BEGIN
     
     (* next symbol is ";" *)
     | ";" :
-        M2Source.ConsumeChar(lexer^.source);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+        source.ConsumeChar();
+        source.GetLineAndColumn(sym.line, sym.column);
         sym.token := M2Token.Semicolon;
         sym.lexeme := M2Token.lexemeForToken(M2Token.Semicolon)
     
     (* next symbol is "<", "<=", chevron text or pragma *)
     | "<" :
-        la2 := la2Char(lexer^.source);
+        la2 := source.la2Char();
         
-        IF la2 = ">" THEN (* found "<<" *)
-          M2Source.MarkLexeme(lexer^.source, sym.line, sym.column);
-          MatchChevronText(lexer^.source, sym.token);
-          M2Source.CopyLexeme(lexer^.source, lexer^.dict, sym.lexeme)
+        IF la2 = "<" THEN (* found "<<" *)
+          source.MarkLexeme(sym.line, sym.column);
+          MatchChevronText(source, sym.token);
+          source.CopyLexeme(self^.dict, sym.lexeme)
         
         ELSIF la2 = "*" THEN (* found "<*" *)
-          M2Source.MarkLexeme(lexer^.source, sym.line, sym.column);
-          MatchPragma(lexer^.source, sym.token);
-          M2Source.CopyLexeme(lexer^.source, lexer^.dict, sym.lexeme)
+          source.MarkLexeme(sym.line, sym.column);
+          MatchPragma(source, sym.token);
+          source.CopyLexeme(self^.dict, sym.lexeme)
         
         ELSE (* "<" or "<=" *)
-          M2Source.GetChar(lexer^.source, ch, next);
-          M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+          source.GetChar(ch, next);
+          source.GetLineAndColumn(sym.line, sym.column);
                   
           IF next = "=" THEN (* found "<=" *)
-            M2Source.ConsumeChar(source);
+            source.ConsumeChar();
             sym.token := M2Token.LessEq;
             sym.lexeme := M2Token.lexemeForToken(M2Token.LessEq)
             
@@ -350,15 +380,15 @@ BEGIN
     
     (* next symbol is "=" or "==" *)
     | "=" :
-        M2Source.GetChar(lexer^.source, ch, next);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+        source.GetChar(ch, next);
+        source.GetLineAndColumn(sym.line, sym.column);
         
         IF next # "=" THEN (* found "=" *)
           sym.token := M2Token.Equal;
           sym.lexeme := M2Token.lexemeForToken(M2Token.Equal)
         
         ELSE (* found "==" *)
-          M2Source.ConsumeChar(lexer^.source);
+          source.ConsumeChar();
           sym.token := M2Token.Identity;
           sym.lexeme := M2Token.lexemeForToken(M2Token.Identity)
         
@@ -366,11 +396,11 @@ BEGIN
     
     (* next symbol is ">" and ">=" *)
     | ">" :
-        M2Source.GetChar(lexer^.source, ch, next);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+        source.GetChar(ch, next);
+        source.GetLineAndColumn(sym.line, sym.column);
         
         IF next # "=" THEN (* found ">=" *)
-          M2Source.ConsumeChar(lexer^.source);
+          source.ConsumeChar();
           sym.token := M2Token.GreaterEq;
           sym.lexeme := M2Token.lexemeForToken(M2Token.GreaterEq)
         
@@ -382,66 +412,66 @@ BEGIN
     
     (* next symbol is "[" *)
     | "[" :
-        M2Source.ConsumeChar(lexer^.source);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+        source.ConsumeChar();
+        source.GetLineAndColumn(sym.line, sym.column);
         sym.token := M2Token.LBracket;
         sym.lexeme := M2Token.lexemeForToken(M2Token.LBracket)
     
     (* next symbol is backslash *)
     | BACKSLASH :
-        M2Source.ConsumeChar(lexer^.source);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+        source.ConsumeChar();
+        source.GetLineAndColumn(sym.line, sym.column);
         sym.token := M2Token.SetDiff;
         sym.lexeme := M2Token.lexemeForToken(M2Token.SetDiff)
     
     (* next symbol is "]" *)
     | "]" :
-        M2Source.ConsumeChar(lexer^.source);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+        source.ConsumeChar();
+        source.GetLineAndColumn(sym.line, sym.column);
         sym.token := M2Token.RBracket;
         sym.lexeme := M2Token.lexemeForToken(M2Token.RBracket)
     
     (* next symbol is "^" *)
     | "^" :
-        M2Source.ConsumeChar(lexer^.source);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+        source.ConsumeChar();
+        source.GetLineAndColumn(sym.line, sym.column);
         sym.token := M2Token.Deref;
         sym.lexeme := M2Token.lexemeForToken(M2Token.Deref)
     
     (* next symbol is "{" *)
     | "{" :
-        M2Source.ConsumeChar(lexer^.source);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+        source.ConsumeChar();
+        source.GetLineAndColumn(sym.line, sym.column);
         sym.token := M2Token.LBrace;
         sym.lexeme := M2Token.lexemeForToken(M2Token.LBrace)
     
     (* next symbol is "|" *)
     | "|" :
-        M2Source.ConsumeChar(lexer^.source);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+        source.ConsumeChar();
+        source.GetLineAndColumn(sym.line, sym.column);
         sym.token := M2Token.VerticalBar;
         sym.lexeme := M2Token.lexemeForToken(M2Token.VerticalBar)
     
     (* next symbol is "}" *)
     | "}" :
-        M2Source.ConsumeChar(lexer^.source);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
+        source.ConsumeChar();
+        source.GetLineAndColumn(sym.line, sym.column);
         sym.token := M2Token.RBrace;
         sym.lexeme := M2Token.lexemeForToken(M2Token.RBrace)
     
     (* next symbol is invalid *)
     ELSE
-      M2Source.MarkLexeme(lexer^.source, sym.line, sym.column);
-      M2Source.ConsumeChar(lexer^.source);
+      source.MarkLexeme(lexer^.source, sym.line, sym.column);
+      source.ConsumeChar(lexer^.source);
       sym.token := M2Token.Invalid;
-      M2Source.CopyLexeme(lexer^.source, lexer^.dict, sym.lexeme);
-      lexer^.errorCount++
+      source.CopyLexeme(self^.dict, sym.lexeme);
+      self^.context^.errorCount++
       
     END; (* CASE *)
   
   END (* IF *);
 
-  lexer^.nextSymbol := sym;
+  lexer^.context^.nextSymbol := sym;
   
   RETURN
 END ConsumeSym;
@@ -461,11 +491,11 @@ END ConsumeSym;
  *  TO DO
  * ---------------------------------------------------------------------------
  *)
-PROCEDURE lookaheadSym ( lexer : Lexer ) : M2Symbol; (* PURE *)
+PROCEDURE lookaheadSym ( self : Lexer ) : M2Symbol;
 
 BEGIN
   
-  RETURN lexer^.nextSymbol
+  RETURN self^.context^.nextSymbol
   
 END lookaheadSym;
 
@@ -484,14 +514,14 @@ END lookaheadSym;
  *  TO DO
  * ---------------------------------------------------------------------------
  *)
-PROCEDURE status ( lexer : Lexer ) : Status;
+PROCEDURE status ( self : Lexer ) : Status;
 
 BEGIN
 
   IF lexer = NIL THEN
     RETURN Status.NotInitialised
   ELSE
-    RETURN lexer^.status
+    RETURN self^.context^.status
   END
 
 END status;
@@ -511,12 +541,12 @@ END status;
  *  TO DO
  * ---------------------------------------------------------------------------
  *)
-PROCEDURE warnCount ( lexer : Lexer ) : CARDINAL; (* PURE *)
+PROCEDURE warnCount ( self : Lexer ) : CARDINAL; (* PURE *)
  (* Returns the lexer's accumulated warning count. *)
 
 BEGIN
   
-  RETURN lexer^.warnCount
+  RETURN self^.context^.warnCount
   
 END warnCount;
 
@@ -535,12 +565,12 @@ END warnCount;
  *  TO DO
  * ---------------------------------------------------------------------------
  *)
-PROCEDURE errorCount ( lexer : Lexer ) : CARDINAL; (* PURE *)
+PROCEDURE errorCount ( self : Lexer ) : CARDINAL; (* PURE *)
  (* Returns the lexer's accumulated error count. *)
 
 BEGIN
   
-  RETURN lexer^.errorCount
+  RETURN self^.context^.errorCount
   
 END errorCount;
 
@@ -572,16 +602,11 @@ BEGIN
     RETURN
   END;
   
-  (* release source *)
-  M2Source.Release(lexer^.source, sourceStatus);
+  (* release source, context and lexer *)
+  Source.Release(self^.context^.source);
+  RELEASE lexer^.context;
+  RELEASE lexer
   
-  (* TO DO: check for and handle error(s) *)
-  
-  (* release lexer *)
-  RELEASE(lexer);
-  lexer := NIL;
-  
-  RETURN
 END Release;
 
 
