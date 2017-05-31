@@ -432,7 +432,7 @@ BEGIN
         sym.lexeme := M2Token.lexemeForToken(M2Token.LBracket)
     
     (* next symbol is backslash *)
-    | BACKSLASH :
+    | ASCII.BACKSLASH :
         source.ConsumeChar();
         source.GetLineAndColumn(sym.line, sym.column);
         sym.token := M2Token.SetDiff;
