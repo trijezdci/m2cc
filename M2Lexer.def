@@ -5,9 +5,7 @@ DEFINITION MODULE M2Lexer;
 (* Lexer for Modula-2 R10 Bootstrap Compiler *)
 
 
-IMPORT M2Symbol;
-
-IMPORT M2Filename;
+IMPORT M2Symbol, Filename;
 
 
 (* Lexer Handle *)
@@ -46,20 +44,14 @@ PROCEDURE ConsumeSym ( lexer : Lexer );
 PROCEDURE lookaheadSym ( lexer : Lexer ) : Symbol;
 (* Returns the current lookahead symbol without consuming it. *)
 
-PROCEDURE GetPosOfConsumedSym ( lexer : Lexer; VAR line, col : CARDINAL );
-(* Passes back line and column counters of the last consumed symbol. *)
-
-PROCEDURE GetPosOfLookaheadSym ( lexer : Lexer; VAR line, col : CARDINAL );
-(* Passes back line and column counters of the current lookahead symbol. *)
+PROCEDURE status ( lexer : Lexer ) : Status;
+(* Returns the status of the last operation. *)
 
 PROCEDURE warnCount ( lexer : Lexer ) : CARDINAL;
  (* Returns the lexer's accumulated warning count. *)
 
 PROCEDURE errorCount ( lexer : Lexer ) : CARDINAL;
  (* Returns the lexer's accumulated error count. *)
-
-PROCEDURE GetStatus ( lexer : Lexer; VAR s : Status );
-(* Passes the status of the last operation back in s. *)
 
 PROCEDURE Release ( VAR lexer : Lexer );
  (* Release lexer instance. Passes back NIL in lexer if successful. *)
