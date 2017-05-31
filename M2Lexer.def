@@ -10,25 +10,7 @@ IMPORT M2Symbol, Filename;
 
 (* Lexer Type *)
 
-TYPE Lexer = RECORD ( NIL )
-    
-  (* opaque context *)
-  context : Context;
-
-  (* method slots *)
-  nextSym,
-  consumeSym : PROCEDURE ( Lexer ) : M2Symbol;
-  
-  warnCount,
-  errorCount : PROCEDURE ( Lexer ) : CARDINAL;
-  status     : PROCEDURE ( Lexer ) : Status
-  
-END; (* Lexer *)
-
-
-(* Lexer Context *)
-
-TYPE Context = OPAQUE;
+TYPE Lexer = OPAQUE;
 
 
 (* Lexer Status *)
@@ -52,11 +34,6 @@ PROCEDURE New ( VAR lexer : Lexer; filename : Filename; VAR s : Status );
 (* Create newly allocated and initialised lexer instance associated with
    source file filename.  Passes back the status of the operation in s. *)
 
-(* Mutator *)
-
-PROCEDURE GetSym ( lexer : Lexer; VAR current, next : M2Symbol );
-(* Passes back the current lookahead symbol in current and consumes it.
-   Passes back the new lookahead symbol in next without consuming it. *)
 
 (* Destructor *)
 
@@ -64,22 +41,25 @@ PROCEDURE Release ( VAR lexer : Lexer );
  (* Release lexer instance. Passes back NIL in lexer if successful. *)
 
 
-(* Method Signatures *)
+(* Static Methods *)
 
-PROCEDURE consumeSym ( self : Lexer ) : M2Symbol;
+PROCEDURE GetSym ( self : M2Lexer; VAR current, next : M2Symbol );
+(* Passes back the current lookahead symbol in current and consumes it.
+   Passes back the new lookahead symbol in next without consuming it. *)
+
+PROCEDURE consumeSym ( self : M2Lexer ) : M2Symbol;
 (* Returns the current lookahead symbol and consumes it. *)
 
-PROCEDURE lookaheadSym ( self : Lexer ) : M2Symbol;
+PROCEDURE lookaheadSym ( self : M2Lexer ) : M2Symbol;
 (* Returns the current lookahead symbol without consuming it. *)
 
-PROCEDURE warnCount ( self : Lexer ) : CARDINAL;
+PROCEDURE warnCount ( self : M2Lexer ) : CARDINAL;
  (* Returns the lexer's accumulated warning count. *)
 
-PROCEDURE errorCount ( self : Lexer ) : CARDINAL;
+PROCEDURE errorCount ( self : M2Lexer ) : CARDINAL;
  (* Returns the lexer's accumulated error count. *)
 
-PROCEDURE status ( self : Lexer ) : Status;
+PROCEDURE status ( self : M2Lexer ) : Status;
 (* Returns the status of the last operation. *)
-
 
 END M2Lexer.
