@@ -114,14 +114,12 @@ PROCEDURE GetSym ( lexer : Lexer; VAR sym, next : M2Symbol );
 
 BEGIN
   
-  (* nextSymbol holds current lookahead, pass it back in sym *)
+  (* context's nextSymbol holds current lookahead, pass it back in sym *)
   sym := lexer^.context^.nextSymbol;
   
-  (* consume the current and read the new lookahead symbol *)
-  ConsumeSym(lexer);
-  
-  (* nextSymbol holds new lookahead, pass it back in next *)
-  next := lexer^.context^.nextSymbol;
+  (* consume the current lookahead,
+     read the new lookahead symbol, pass it back in next *)
+  next := lexer.consumeSym();
   
   RETURN
 END GetSym;
@@ -129,7 +127,7 @@ END GetSym;
 
 (* ---------------------------------------------------------------------------
  * procedure consumeSym ( lexer )
- *  consumes current lookahead symbol
+ *  consumes current lookahead symbol and returns new lookahead symbol
  * ---------------------------------------------------------------------------
  * pre-conditions:
  *  TO DO
@@ -162,7 +160,7 @@ BEGIN
   
   (* skip any whitespace, tab and new line *)
   WHILE NOT source.eof() AND
-    ((next = ASCII.SPACE) OR (next = ASCII.TAB) OR (next = ASCII.NEWLINE)) DO
+    (next = ASCII.SPACE OR next = ASCII.TAB OR next = ASCII.NEWLINE) DO
     source.GetChar(ch, next)
   END; (* WHILE *)
   
@@ -176,7 +174,7 @@ BEGIN
   
   (* check for reserved word or identifier *)
   ELSIF ASCII.isLetter(next) OR (next = "_") OR (next = "$") THEN
-    source.MarkLexeme(source, sym.line, sym.column);
+    source.MarkLexeme(sym.line, sym.column);
     MatchResWordOrIdent(source, sym.token);
     source.CopyLexeme(self^.dict, sym.lexeme)
 
@@ -276,7 +274,7 @@ BEGIN
         source.GetLineAndColumn(sym.line, sym.column);
         
         IF next = "-" THEN (* found "--" *)
-          source.ConsumeChar(lexer^.source);
+          source.ConsumeChar();
           sym.token := M2Token.MinusMinus;
           sym.lexeme := M2Token.lexemeForToken(M2Token.MinusMinus)
         
@@ -461,8 +459,8 @@ BEGIN
     
     (* next symbol is invalid *)
     ELSE
-      source.MarkLexeme(lexer^.source, sym.line, sym.column);
-      source.ConsumeChar(lexer^.source);
+      source.MarkLexeme(sym.line, sym.column);
+      source.ConsumeChar();
       sym.token := M2Token.Invalid;
       source.CopyLexeme(self^.dict, sym.lexeme);
       self^.context^.errorCount++
@@ -470,11 +468,12 @@ BEGIN
     END; (* CASE *)
   
   END (* IF *);
-
+  
+  (* store sym in context for use by lookaheadSym *)
   lexer^.context^.nextSymbol := sym;
   
   RETURN
-END ConsumeSym;
+END consumeSym;
 
 
 (* ---------------------------------------------------------------------------
@@ -494,9 +493,7 @@ END ConsumeSym;
 PROCEDURE lookaheadSym ( self : Lexer ) : M2Symbol;
 
 BEGIN
-  
   RETURN self^.context^.nextSymbol
-  
 END lookaheadSym;
 
 
@@ -545,9 +542,7 @@ PROCEDURE warnCount ( self : Lexer ) : CARDINAL; (* PURE *)
  (* Returns the lexer's accumulated warning count. *)
 
 BEGIN
-  
   RETURN self^.context^.warnCount
-  
 END warnCount;
 
 
@@ -569,9 +564,7 @@ PROCEDURE errorCount ( self : Lexer ) : CARDINAL; (* PURE *)
  (* Returns the lexer's accumulated error count. *)
 
 BEGIN
-  
   RETURN self^.context^.errorCount
-  
 END errorCount;
 
 
@@ -637,7 +630,7 @@ END Release;
  * ---------------------------------------------------------------------------
  *)
 PROCEDURE MatchResWordOrIdent
-  ( s : Source; VAR t : TokenValue; VAR diag : Diagnostic );
+  ( source : Source; VAR token : Token; VAR diag : Diagnostic );
 
 VAR
   ch, next : CHAR;
@@ -650,7 +643,7 @@ BEGIN
   nonStdChars := 0;
   
   REPEAT
-    getChar(s, ch, next);
+    source.GetChar(ch, next);
     allChars++;
     
     IF (ch >= "A") AND (ch <= "Z") THEN
@@ -661,7 +654,7 @@ BEGIN
       nonStdChars++
     END
 
-  UNTIL eof(s) OR NOT isIdentChar(next);
+  UNTIL source.eof() OR NOT ASCII.isIdentChar(next);
   
   IF allChars = upperChars THEN (* possibly reserved word found *)
     (* TO DO : check for reserved word *)
@@ -705,11 +698,11 @@ END MatchResWordOrIdent;
  * ---------------------------------------------------------------------------
  *)
 PROCEDURE MatchNumericLiteral
-  ( s : Source; VAR t : TokenValue; VAR diag : Diagnostic );
+  ( source : Source; VAR token : M2Token; VAR diag : Diagnostic );
 
 BEGIN
   
-  M2Source.GetChar(s, ch, next);
+  source.GetChar(ch, next);
   IF ch = "0" THEN
           
     CASE next OF
@@ -760,7 +753,7 @@ END MatchNumericLiteral;
  * ---------------------------------------------------------------------------
  *)
 PROCEDURE MatchQuotedLiteral
-  ( s : Source; VAR t : TokenValue; VAR diag : Diagnostic );
+  ( source : Source; VAR token : M2Token; VAR diag : Diagnostic );
 
 VAR
   delimiter, ch, next : CHAR;
@@ -771,16 +764,18 @@ BEGIN
   (* TO DO : update, following change to M2Source *)
   
   len := 0;
-  M2Source.GetChar(s, delimiter, next);
+  source.GetChar(delimiter, next);
   
-  WHILE NOT eof(s) AND (next # delimiter) AND isPrintable(next) DO
+  WHILE NOT source.eof() AND
+        next # delimiter AND
+        ASCII.isPrintable(next) DO
     
     IF next # ASCII.BACKSLASH THEN
-      M2Source.GetChar(s, ch, next);
+      source.GetChar(ch, next);
       len++
       
     ELSE (* backslash *)
-      MatchEscapeSequence(s, success);
+      MatchEscapeSequence(source, success);
       
       IF NOT success THEN (* unescaped backslash found *)
         (* TO DO : handle error *)
@@ -790,7 +785,7 @@ BEGIN
   END; (* WHILE *)
   
   IF next = delimiter THEN
-    M2Source.ConsumeChar(s);
+    source.ConsumeChar();
     len++
     
   ELSE (* illegal character in string literal found *)
@@ -834,7 +829,7 @@ END MatchQuotedLiteral;
  * ---------------------------------------------------------------------------
  *)
 PROCEDURE matchLineComment
-  ( s : Source; VAR t : TokenValue; VAR diag : Diagnostic );
+  ( source : Source; VAR token : M2Token; VAR diag : Diagnostic );
 
 VAR
   ch, next : CHAR;
@@ -842,8 +837,8 @@ VAR
 BEGIN
 
   REPEAT
-    M2Source.GetChar(s, ch, next)
-  UNTIL M2Source.eof(s) OR (next = ASCII.NEWLINE);
+    source.GetChar(ch, next)
+  UNTIL source.eof() OR (next = ASCII.NEWLINE);
   
   token := M2Token.LineComment
 
@@ -876,7 +871,7 @@ END MatchLineComment;
  * ---------------------------------------------------------------------------
  *)
 PROCEDURE MatchBlockComment
-  ( s : Source; VAR t : TokenValue; VAR diag : Diagnostic );
+  ( source : Source; VAR token : M2Token; VAR diag : Diagnostic );
 
 VAR
   ch, next : CHAR;
@@ -886,20 +881,20 @@ BEGIN
   
   nestLevel := 1;
   
-  WHILE NOT M2Source.eof(s) AND (nestLevel > 0) DO
-    M2Source.GetChar(s, ch, next);
+  WHILE NOT source.eof() AND (nestLevel > 0) DO
+    source.GetChar(ch, next);
     
     IF (ch = "*") AND (next = ")") THEN
-      M2Source.ConsumeChar(s);
+      source.ConsumeChar();
       nestLevel--
     
     ELSIF (ch = "(") AND (next = "*") THEN
-      M2Source.ConsumeChar(s);
+      source.ConsumeChar();
       nestLevel++
       
     END;
     
-    M2Source.ConsumeChar(s)
+    source.ConsumeChar()
     
   END; (* WHILE *)
   
@@ -932,7 +927,7 @@ END MatchBlockComment;
  * ---------------------------------------------------------------------------
  *)
 PROCEDURE MatchChevronText
-  ( s : Source; VAR t : TokenValue; VAR diag : Diagnostic );
+  ( source : Source; VAR token : M2Token; VAR diag : Diagnostic );
 
 BEGIN
 
@@ -965,7 +960,7 @@ END MatchChevronText;
  * ---------------------------------------------------------------------------
  *)
 PROCEDURE MatchPragma
-  ( s : Source; VAR t : TokenValue; VAR diag : Diagnostic );
+  ( source : Source; VAR token : M2Token; VAR diag : Diagnostic );
 
 BEGIN
 
