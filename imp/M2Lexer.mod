@@ -12,7 +12,7 @@ IMPORT ASCII, Capabilities, M2Source, M2Token, M2Symbol;
 TYPE M2Lexer = POINTER TO LexerDescriptor;
 
 TYPE LexerDescriptor = RECORD
-  source     : Source;
+  source     : M2Source;
   nextSymbol : M2Symbol;
   warnings,
   errors     : CARDINAL;
@@ -36,7 +36,7 @@ END; (* LexerDescriptor *)
  *  TO DO
  * ---------------------------------------------------------------------------
  *)
-PROCEDURE New ( VAR newLexer : Lexer; filename : Filename; VAR s : Status );
+PROCEDURE New ( VAR newLexer : M2Lexer; filename : Filename; VAR s : Status );
 
 VAR
   source : M2Source;
@@ -70,11 +70,11 @@ BEGIN
   newLexer^.warnings := 0;
   newLexer^.errors := 0;
   newLexer^.lastStatus := Status.Success;
-    
-    
+  
   (* read the first symbol to be returned *)
   newLexer^.nextSymbol := newLexer.consumeSym();
   
+  s := Status.Success;
   RETURN
 END New;
 
@@ -93,16 +93,16 @@ END New;
  *  TO DO
  * ---------------------------------------------------------------------------
  *)
-PROCEDURE GetSym ( self : Lexer; VAR sym, next : M2Symbol );
+PROCEDURE GetSym ( self : M2Lexer; VAR sym, next : M2Symbol );
 
 BEGIN
   
-  (* context's nextSymbol holds current lookahead, pass it back in sym *)
+  (* nextSymbol holds current lookahead, pass it back in sym *)
   sym := self^.nextSymbol;
   
   (* consume the current lookahead,
      read the new lookahead symbol, pass it back in next *)
-  next := lexer.consumeSym();
+  next := self.consumeSym();
   
   RETURN
 END GetSym;
@@ -468,14 +468,14 @@ BEGIN
       source.ConsumeChar();
       sym.token := M2Token.Invalid;
       source.CopyLexeme(self^.dict, sym.lexeme);
-      self^.context^.errorCount++
+      self^.errors++
       
     END; (* CASE *)
   
   END (* IF *);
   
-  (* store sym in context for use by lookaheadSym *)
-  lexer^.nextSymbol := sym;
+  (* store symbol for use by lookaheadSym *)
+  self^.nextSymbol := sym;
   
   RETURN
 END consumeSym;
