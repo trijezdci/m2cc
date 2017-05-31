@@ -4,7 +4,7 @@ IMPLEMENTATION MODULE M2Lexer;
 
 (* Lexer for Modula-2 R10 Bootstrap Compiler *)
 
-IMPORT ASCII, M2Params, M2Source, M2Tokens;
+IMPORT ASCII, M2Source, M2Token, M2Symbol;
 
 
 (* Lexer Descriptor *)
@@ -12,9 +12,9 @@ IMPORT ASCII, M2Params, M2Source, M2Tokens;
 TYPE Lexer = POINTER TO LexerDescriptor;
 
 TYPE LexerDescriptor = RECORD
-  source : Source;
+  source : M2Source;
   status : Status;
-  nextSymbol : Symbol;
+  nextSymbol : M2Symbol;
   errorCount,
   warnCount : CARDINAL;
 END;
@@ -37,7 +37,10 @@ END;
  * ---------------------------------------------------------------------------
  *)
 PROCEDURE New ( VAR lexer : Lexer; filename : Filename; VAR s : Status );
- 
+
+VAR
+  sourceStatus : M2Source.Status;
+
 BEGIN
  
   (* lexer must not have been initialised *)
@@ -55,7 +58,7 @@ BEGIN
   
   (* initialise source *)
   M2Source.New(lexer^.source, filename, sourceStatus);
-  IF sourceStatus # M2Source.Success THEN
+  IF sourceStatus # M2Source.Status.Success THEN
   (* TO DO: status *)
     RETURN
   END;
@@ -85,7 +88,7 @@ END New;
  *  TO DO
  * ---------------------------------------------------------------------------
  *)
-PROCEDURE GetSym ( lexer : Lexer; VAR sym, next : Symbol );
+PROCEDURE GetSym ( lexer : Lexer; VAR sym, next : M2Symbol );
 
 BEGIN
   
@@ -120,7 +123,7 @@ PROCEDURE ConsumeSym ( lexer : Lexer );
 
 VAR
   ch, next, la2 : CHAR;
-  sym : Symbol;
+  sym : M2Symbol;
 
 BEGIN
   (* ensure source is valid *)
@@ -375,14 +378,7 @@ BEGIN
           sym.token := M2Token.Greater;
           sym.lexeme := M2Token.lexemeForToken(M2Token.Greater)
         
-        END (* "=" or "==" *)
-    
-    (* next symbol is "?" *)
-    | "?" :
-        M2Source.ConsumeChar(lexer^.source);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
-        sym.token := M2Token.QMark;
-        sym.lexeme := M2Token.lexemeForToken(M2Token.QMark)
+        END (* ">" or ">=" *)
     
     (* next symbol is "[" *)
     | "[" :
@@ -433,13 +429,6 @@ BEGIN
         sym.token := M2Token.RBrace;
         sym.lexeme := M2Token.lexemeForToken(M2Token.RBrace)
     
-    (* next symbol is "~" *)
-    | "~" :
-        M2Source.ConsumeChar(lexer^.source);
-        M2Source.GetLineAndColumn(lexer^.source, sym.line, sym.column);
-        sym.token := M2Token.Tilde;
-        sym.lexeme := M2Token.lexemeForToken(M2Token.Tilde)
-    
     (* next symbol is invalid *)
     ELSE
       M2Source.MarkLexeme(lexer^.source, sym.line, sym.column);
@@ -459,7 +448,7 @@ END ConsumeSym;
 
 
 (* ---------------------------------------------------------------------------
- * procedure lookaheadSym ( lexer ) : Symbol
+ * procedure lookaheadSym ( lexer ) : M2Symbol
  *  returns current lookahead symbol
  * ---------------------------------------------------------------------------
  * pre-conditions:
@@ -472,7 +461,7 @@ END ConsumeSym;
  *  TO DO
  * ---------------------------------------------------------------------------
  *)
-PROCEDURE lookaheadSym ( lexer : Lexer ) : Symbol; (* PURE *)
+PROCEDURE lookaheadSym ( lexer : Lexer ) : M2Symbol; (* PURE *)
 
 BEGIN
   
@@ -482,8 +471,8 @@ END lookaheadSym;
 
 
 (* ---------------------------------------------------------------------------
- * procedure GetPosOfConsumedSym ( lexer, line, col )
- *  passes back line and column of last consumed symbol
+ * procedure GetStatus ( lexer, status )
+ *  returns status of last operation
  * ---------------------------------------------------------------------------
  * pre-conditions:
  *  TO DO
@@ -495,32 +484,17 @@ END lookaheadSym;
  *  TO DO
  * ---------------------------------------------------------------------------
  *)
-PROCEDURE GetPosOfConsumedSym ( lexer : Lexer; VAR line, col : CARDINAL );
+PROCEDURE status ( lexer : Lexer ) : Status;
 
 BEGIN
-  (* TO DO *)
-END GetPosOfConsumedSym;
 
+  IF lexer = NIL THEN
+    RETURN Status.NotInitialised
+  ELSE
+    RETURN lexer^.status
+  END
 
-(* ---------------------------------------------------------------------------
- * procedure GetPosOfLookaheadSym ( lexer, line, col )
- *  passes back line and column of current lookahead symbol
- * ---------------------------------------------------------------------------
- * pre-conditions:
- *  TO DO
- *
- * post-conditions:
- *  TO DO
- *
- * error-conditions:
- *  TO DO
- * ---------------------------------------------------------------------------
- *)
-PROCEDURE GetPosOfLookaheadSym ( lexer : Lexer; VAR line, col : CARDINAL );
-
-BEGIN
-  (* TO DO *)
-END GetPosOfLookaheadSym;
+END status;
 
 
 (* ---------------------------------------------------------------------------
@@ -569,33 +543,6 @@ BEGIN
   RETURN lexer^.errorCount
   
 END errorCount;
-
-
-(* ---------------------------------------------------------------------------
- * procedure GetStatus ( lexer, status )
- *  passes back status of last operation
- * ---------------------------------------------------------------------------
- * pre-conditions:
- *  TO DO
- *
- * post-conditions:
- *  TO DO
- *
- * error-conditions:
- *  TO DO
- * ---------------------------------------------------------------------------
- *)
-PROCEDURE GetStatus ( lexer : Lexer; VAR s : Status );
-
-BEGIN
-
-  IF lexer = NIL THEN
-    s := Status.NotInitialised
-  ELSE
-    s := lexer^.status
-  END
-
-END GetStatus;
 
 
 (* ---------------------------------------------------------------------------
