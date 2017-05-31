@@ -207,6 +207,13 @@ BEGIN
         sym.token := M2Token.NotEqual;
         sym.lexeme := M2Token.lexemeForToken(M2Token.NotEqual)
     
+    (* next symbol is "&" *)
+    | "&" :
+        source.ConsumeChar();
+        source.GetLineAndColumn(sym.line, sym.column);
+        sym.token := M2Token.Concat;
+        sym.lexeme := M2Token.lexemeForToken(M2Token.Concat)
+    
     (* next symbol is "(" or block comment *)
     | "(" :
         IF source.la2Char() = "*" THEN (* found block comment *)
@@ -345,7 +352,7 @@ BEGIN
         sym.token := M2Token.Semicolon;
         sym.lexeme := M2Token.lexemeForToken(M2Token.Semicolon)
     
-    (* next symbol is "<", "<=", chevron text or pragma *)
+    (* next symbol is "<", "<=", "<>", chevron text or pragma *)
     | "<" :
         la2 := source.la2Char();
         
@@ -358,8 +365,8 @@ BEGIN
           source.MarkLexeme(sym.line, sym.column);
           MatchPragma(source, sym.token);
           source.CopyLexeme(self^.dict, sym.lexeme)
-        
-        ELSE (* "<" or "<=" *)
+          
+        ELSE (* "<", "<=" or "<> "*)
           source.GetChar(ch, next);
           source.GetLineAndColumn(sym.line, sym.column);
                   
@@ -368,11 +375,15 @@ BEGIN
             sym.token := M2Token.LessEq;
             sym.lexeme := M2Token.lexemeForToken(M2Token.LessEq)
             
+          ELSIF next = ">" THEN (* found "<>" *)
+            sym.token := M2Token.MutualDep;
+            sym.lexeme := M2Token.lexemeForToken(M2Token.MutualDep)
+            
           ELSE (* found "<" *)
             sym.token := M2Token.Less;
             sym.lexeme := M2Token.lexemeForToken(M2Token.Less)
           
-          END (* "<" or "<=" *)
+          END (* "<", "<=" or "<>" *)
           
         END (* chevron text or pragma *)
     
@@ -392,21 +403,26 @@ BEGIN
         
         END (* "=" or "==" *)
     
-    (* next symbol is ">" and ">=" *)
+    (* next symbol is ">", ">=" or "><" *)
     | ">" :
         source.GetChar(ch, next);
         source.GetLineAndColumn(sym.line, sym.column);
         
-        IF next # "=" THEN (* found ">=" *)
+        IF next = "=" THEN (* found ">=" *)
           source.ConsumeChar();
           sym.token := M2Token.GreaterEq;
           sym.lexeme := M2Token.lexemeForToken(M2Token.GreaterEq)
         
-        ELSE (* found ">" *)
+        ELSIF next = "<" THEN (* found "><" *)
+          source.ConsumeChar();
+          sym.token := M2Token.MutualExcl;
+          sym.lexeme := M2Token.lexemeForToken(M2Token.MutualExcl)
+          
+        ELSE (* found sole ">" *)
           sym.token := M2Token.Greater;
           sym.lexeme := M2Token.lexemeForToken(M2Token.Greater)
         
-        END (* ">" or ">=" *)
+        END (* ">", ">=" or "><" *)
     
     (* next symbol is "[" *)
     | "[" :
