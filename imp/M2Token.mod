@@ -23,7 +23,7 @@ TYPE
 PROCEDURE isResWord ( t : M2Token ) : BOOLEAN;
  (* Returns TRUE if t is a reserved word, otherwise FALSE. *)
 BEGIN
-  RETURN (t >= TMIN(ResWords)) AND (t <= TMAX(ResWords))
+  RETURN (t >= TMIN(ResWords) AND t <= TMAX(ResWords))
 END isResWord;
 
 
