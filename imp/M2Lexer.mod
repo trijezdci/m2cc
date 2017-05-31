@@ -287,8 +287,8 @@ BEGIN
         
         ELSIF next = ">" THEN (* found "->" *)
           source.ConsumeChar();
-          sym.token := M2Token.RArrow;
-          sym.lexeme := M2Token.lexemeForToken(M2Token.RArrow)
+          sym.token := M2Token.OneWayDep;
+          sym.lexeme := M2Token.lexemeForToken(M2Token.OneWayDep)
         
         ELSE (* found sole "-" *)
           sym.token := M2Token.Minus;
