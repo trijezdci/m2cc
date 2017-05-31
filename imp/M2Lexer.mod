@@ -4,27 +4,26 @@ IMPLEMENTATION MODULE M2Lexer;
 
 (* Lexer for Modula-2 R10 Bootstrap Compiler *)
 
-IMPORT ASCII, M2Source, M2Token, M2Symbol;
+IMPORT ASCII, Capabilities, M2Source, M2Token, M2Symbol;
 
 
-(* Lexer Context *)
+(* Lexer Type *)
 
-TYPE Context = POINTER TO ContextDescriptor;
+TYPE M2Lexer = POINTER TO LexerDescriptor;
 
-TYPE ContextDescriptor = RECORD
-  (* instance vars *)
+TYPE LexerDescriptor = RECORD
   source     : Source;
   nextSymbol : M2Symbol;
   warnings,
   errors     : CARDINAL;
   lastStatus : Status
-END; (* ContextDescriptor *)
+END; (* LexerDescriptor *)
 
 
 (* Operations *)
 
 (* ---------------------------------------------------------------------------
- * procedure New ( lexer, filename, status )
+ * procedure New ( newLexer, filename, status )
  *  creates a new lexer instance, associated with filename
  * ---------------------------------------------------------------------------
  * pre-conditions:
@@ -37,60 +36,44 @@ END; (* ContextDescriptor *)
  *  TO DO
  * ---------------------------------------------------------------------------
  *)
-PROCEDURE New ( VAR lexer : Lexer; filename : Filename; VAR s : Status );
+PROCEDURE New ( VAR newLexer : Lexer; filename : Filename; VAR s : Status );
 
 VAR
-  context : Context;
+  source : M2Source;
   sourceStatus : M2Source.Status;
 
 BEGIN
  
   (* lexer must not have been initialised *)
-  IF lexer # NIL THEN
+  IF newLexer # NIL THEN
     status := Status.AlreadyInitialised;
     RETURN
   END;
   
-  (* allocate context *)
-  NEW context;
-  IF context = NIL THEN
+  (* allocate and initialise source *)
+  M2Source.New(source, filename, sourceStatus);
+  IF sourceStatus # M2Source.Status.Success THEN
     s := Status.UnableToAllocate;
     RETURN
   END;
   
-  (* initialise context *)
-  context^.source := source;
-  context^.warnCount := 0;
-  context^.errorCount := 0;
-  context^.lastStatus := Status.Success;
-  
   (* allocate a lexer instance *)
-  NEW lexer;
-  IF lexer = NIL THEN
+  NEW newLexer;
+  IF newLexer = NIL THEN
     s := Status.UnableToAllocate;
-    RELEASE context;
+    RELEASE source;
     RETURN
   END;
   
   (* initialise lexer *)
-  lexer^.context := context;
-  lexer^.nextSym := nextSym;
-  lexer^.consumeSym := consumeSym;
-  lexer^.warnCount := warnCount;
-  lexer^.errorCount := errorCount;
-  lexer^.status := status;
+  newLexer^.source := source;
+  newLexer^.warnings := 0;
+  newLexer^.errors := 0;
+  newLexer^.lastStatus := Status.Success;
     
-  (* allocate and initialise source *)
-  M2Source.New(lexer^.source, filename, sourceStatus);
-  IF sourceStatus # M2Source.Status.Success THEN
-    s := Status.UnableToAllocate;
-    RELEASE context;
-    RELEASE lexer;
-    RETURN
-  END;
     
   (* read the first symbol to be returned *)
-  lexer^.context^.nextSymbol := lexer.consumeSym();
+  newLexer^.nextSymbol := newLexer.consumeSym();
   
   RETURN
 END New;
@@ -110,12 +93,12 @@ END New;
  *  TO DO
  * ---------------------------------------------------------------------------
  *)
-PROCEDURE GetSym ( lexer : Lexer; VAR sym, next : M2Symbol );
+PROCEDURE GetSym ( self : Lexer; VAR sym, next : M2Symbol );
 
 BEGIN
   
   (* context's nextSymbol holds current lookahead, pass it back in sym *)
-  sym := lexer^.context^.nextSymbol;
+  sym := self^.nextSymbol;
   
   (* consume the current lookahead,
      read the new lookahead symbol, pass it back in next *)
@@ -153,7 +136,7 @@ BEGIN
     RETURN
   END;
   
-  source := self^.context^.source;
+  source := self^.source;
   
   (* all decisions are based on lookahead *)
   next := source.lookaheadChar();
@@ -173,23 +156,29 @@ BEGIN
     sym.lexeme := 0
   
   (* check for reserved word or identifier *)
-  ELSIF ASCII.isLetter(next) OR (next = "_") OR (next = "$") THEN
+  ELSIF ASCII.isLetter(next) THEN
     source.MarkLexeme(sym.line, sym.column);
     MatchResWordOrIdent(source, sym.token);
     source.CopyLexeme(self^.dict, sym.lexeme)
 
   (* check for numeric literal *)
-  ELSIF (next >= "0") AND (next <= "9") THEN 
+  ELSIF next >= "0" AND next <= "9" THEN 
     source.MarkLexeme(sym.line, sym.column);
     MatchNumericLiteral(source, sym.token);
     source.CopyLexeme(self^.dict, sym.lexeme)
 
   (* check for quoted literal *)
-  ELSIF (next = ASCII.SINGLEQUOTE) OR (next = ASCII.DOUBLEQUOTE) THEN
+  ELSIF next = ASCII.SINGLEQUOTE OR next = ASCII.DOUBLEQUOTE THEN
     source.MarkLexeme(sym.line, sym.column);
     MatchQuotedLiteral(source, sym.token);
     source.CopyLexeme(self^.dict, sym.lexeme)
-      
+    
+  ELSIF next = "$" AND
+        Capabilities.isEnabled(Capabilities.OpenVMSIdentifiers) THEN
+    source.MarkLexeme(sym.line, sym.column);
+    MatchOpenVMSIdent(source, sym.token);
+    source.CopyLexeme(self^.dict, sym.lexeme)
+    
   (* check for any other symbol *)
   ELSE
     CASE next OF
@@ -486,7 +475,7 @@ BEGIN
   END (* IF *);
   
   (* store sym in context for use by lookaheadSym *)
-  lexer^.context^.nextSymbol := sym;
+  lexer^.nextSymbol := sym;
   
   RETURN
 END consumeSym;
@@ -509,7 +498,7 @@ END consumeSym;
 PROCEDURE lookaheadSym ( self : Lexer ) : M2Symbol;
 
 BEGIN
-  RETURN self^.context^.nextSymbol
+  RETURN self^.nextSymbol
 END lookaheadSym;
 
 
@@ -534,7 +523,7 @@ BEGIN
   IF lexer = NIL THEN
     RETURN Status.NotInitialised
   ELSE
-    RETURN self^.context^.status
+    RETURN self^.lastStatus
   END
 
 END status;
@@ -558,7 +547,7 @@ PROCEDURE warnCount ( self : Lexer ) : CARDINAL; (* PURE *)
  (* Returns the lexer's accumulated warning count. *)
 
 BEGIN
-  RETURN self^.context^.warnCount
+  RETURN self^.warnings
 END warnCount;
 
 
@@ -580,7 +569,7 @@ PROCEDURE errorCount ( self : Lexer ) : CARDINAL; (* PURE *)
  (* Returns the lexer's accumulated error count. *)
 
 BEGIN
-  RETURN self^.context^.errorCount
+  RETURN self^.errors
 END errorCount;
 
 
@@ -600,9 +589,6 @@ END errorCount;
  * ---------------------------------------------------------------------------
  *)
 PROCEDURE Release ( VAR lexer : Lexer );
-
-VAR
-  sourceStatus : M2Source.Status;
   
 BEGIN
 
@@ -611,9 +597,8 @@ BEGIN
     RETURN
   END;
   
-  (* release source, context and lexer *)
-  Source.Release(self^.context^.source);
-  RELEASE lexer^.context;
+  (* release source and lexer *)
+  Source.Release(self^.source);
   RELEASE lexer
   
 END Release;
