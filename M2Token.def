@@ -116,39 +116,49 @@ TYPE M2Token =
     Semicolon,      (* 92 *)
     VerticalBar,    (* 93 *)
     Deref,          (* 94 *)
-    Tilde,          (* 95 *)
-    DotDot,         (* 96 *)
-    Assign,         (* 97 *)
-    PlusPlus,       (* 98 *)
-    MinusMinus,     (* 99 *)
-    OneWayDep,     (* 100 *)
-    MutualDep,     (* 101 *)
-    MutualExcl,    (* 102 *)
-    PlusMinus,     (* 103 *)
+    DotDot,         (* 95 *)
+    Assign,         (* 96 *)
+    PlusPlus,       (* 97 *)
+    MinusMinus,     (* 98 *)
+    OneWayDep,      (* 99 *)
+    MutualDep,     (* 100 *)
+    MutualExcl,    (* 101 *)
+    PlusMinus,     (* 102 *)
     
   (* Paired Delimiters *)
-    LParen,        (* 104 *)
-    RParen,        (* 105 *)
-    LBracket,      (* 106 *)
-    RBracket,      (* 107 *)
-    LBrace,        (* 108 *)
-    RBrace,        (* 109 *)
+    LParen,        (* 103 *)
+    RParen,        (* 104 *)
+    LBracket,      (* 105 *)
+    RBracket,      (* 106 *)
+    LBrace,        (* 107 *)
+    RBrace,        (* 108 *)
     
   (* Operators *)
-    Plus,          (* 110 *)   (* also used as punctuation *)
-    Minus,         (* 111 *)   (* also used as punctuation *)
-    Asterisk,      (* 112 *)   (* also used as punctuation *)
-    AsterDot,      (* 113 *)
-    RealDiv,       (* 114 *)
-    SetDiff,       (* 115 *)
-    Equal,         (* 116 *)
-    NotEqual,      (* 117 *)
-    Greater,       (* 118 *)
-    GreaterOrEq,   (* 129 *)
-    Less,          (* 120 *)
-    LessOrEq,      (* 121 *)
-    Concat,        (* 122 *)
-    Identity,      (* 123 *)
+  
+  (* Non-Resword Level-1 Operators *)
+    Equal,         (* 109 *)
+    NotEqual,      (* 110 *)
+    Greater,       (* 111 *)
+    GreaterOrEq,   (* 112 *)
+    Less,          (* 113 *)
+    LessOrEq,      (* 114 *)
+    Identity,      (* 115 *)
+    
+  (* Non-Resword Level-2 Operators *)
+    Plus,          (* 116 *)   (* also used as punctuation *)
+    Minus,         (* 117 *)   (* also used as punctuation *)
+    Concat,        (* 118 *)
+    SetDiff,       (* 119 *)
+    
+  (* Non-Resword Level-3 Operators *)
+    Asterisk,      (* 120 *)   (* also used as punctuation *)
+    RealDiv,       (* 121 *)
+    DotProd,       (* 122 *)   (* reserved for future use *)
+    
+  (* Non-Resword Level-4 Operators *)
+    Power,         (* 123 *)   (* reserved for future use *)
+    
+  (* Non-Resword Level-5 Operators *)
     TypeConv,      (* 124 *)
     
   (* Comments & Pragmas *)
@@ -157,20 +167,6 @@ TYPE M2Token =
   
   (* End Of File Marker *)
     EOF );         (* 127 *)
-
-
-(* Token Subranges *)
-
-TYPE
-  ResWords = [Alias..Yield] OF M2Token;
-  ProcBindables = [Abs..Writef] OF M2Token;
-  ConstBindables = [Tbase..Trefc] OF M2Token;
-  Identifiers = [Abs..OtherIdent] OF M2Token;
-  Numbers = [WholeNumber..RealNumber] OF M2Token;
-  CharsAndStrings = [CharCode..QuotedString] OF M2Token;
-  Punctuation = [Dot..Asterisk] OF M2Token;
-  Operators = [Plus..Identity] OF M2Token;
-  CommentsAndPragmas = [LineComment..Pragma] OF M2Token;
 
 
 (* Functions To Determine Token Classification *)
