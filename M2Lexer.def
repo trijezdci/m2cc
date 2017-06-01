@@ -2,7 +2,7 @@
 
 DEFINITION MODULE M2Lexer;
 
-(* Lexer for Modula-2 R10 Bootstrap Compiler *)
+(* Lexer for Modula-2 R10 Core Compiler *)
 
 
 IMPORT M2Symbol, Filename;
