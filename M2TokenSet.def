@@ -2,12 +2,14 @@
 
 DEFINITION MODULE M2TokenSet;
 
-(* Token Set ADT for Modula-2 R10 Bootstrap Compiler *)
+(* Token Set ADT for Modula-2 R10 Core Compiler *)
 
 IMPORT M2Token;
 
 
 TYPE M2TokenSet = OPAQUE;
+
+(* Constructor *)
 
 PROCEDURE New
   ( VAR set : M2TokenSet; segment3, segment2, segment1, segment0 : LONGCARD );
@@ -25,6 +27,15 @@ PROCEDURE New
     If the bitwidth of type LONGCARD is larger than 32, any higher bits are
     ignored.  The procedure passes back NIL if allocation is unsuccessful. *)
 
+
+(* Destructor *)
+
+PROCEDURE Release ( VAR set : M2TokenSet );
+(* Releases set and passes back NIL if successful. *)
+
+
+(* Operations *)
+
 PROCEDURE Insert ( set : M2TokenSet; token : Token );
 (* Inserts token into set. *)
 
@@ -40,13 +51,14 @@ PROCEDURE isElem ( set : M2TokenSet; token : Token ) : BOOLEAN;
 PROCEDURE count ( set : M2TokenSet ) : CARDINAL;
 (* Returns the number of tokens in set. *)
 
+
+(* Data Output *)
+
 PROCEDURE PrintTokenList ( set : M2TokenSet );
 (* Prints a comma separated list of tokens in set. *)
 
 PROCEDURE PrintSegments ( set : M2TokenSet );
 (* Prints a comma separated list of the data segments of set in base-16. *)
 
-PROCEDURE Release ( VAR set : M2TokenSet );
-(* Releases set and passes back NIL if successful. *)
 
 END M2TokenSet.
