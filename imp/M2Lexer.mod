@@ -2,7 +2,7 @@
 
 IMPLEMENTATION MODULE M2Lexer;
 
-(* Lexer for Modula-2 R10 Bootstrap Compiler *)
+(* Lexer for Modula-2 R10 Core Compiler *)
 
 IMPORT ASCII, Capabilities, M2Source, M2Token, M2Symbol;
 
@@ -173,6 +173,7 @@ BEGIN
     MatchQuotedLiteral(source, sym.token);
     source.CopyLexeme(self^.dict, sym.lexeme)
     
+  (* check for optional OpenVMS identifier starting with "$" *)
   ELSIF next = "$" AND
         Capabilities.isEnabled(Capabilities.OpenVMSIdentifiers) THEN
     source.MarkLexeme(sym.line, sym.column);
@@ -654,7 +655,7 @@ BEGIN
     IF (ch = "_") OR (ch = "$") THEN
       nonStdChars++
     END
-
+    
   UNTIL source.eof() OR NOT ASCII.isIdentChar(next);
   
   IF allChars = upperChars THEN (* possibly reserved word found *)
