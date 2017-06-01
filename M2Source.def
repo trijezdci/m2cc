@@ -1,15 +1,13 @@
-(*!m2pim*) (* Copyright (c) 2015 B.Kowarsch. All rights reserved. *)
+(*!m2r10*) (* Copyright (c) 2015 B.Kowarsch. All rights reserved. *)
 
 DEFINITION MODULE M2Source;
 
 (* Modula-2 Source File Reader *)
 
-IMPORT M2Filename;
-
-IMPORT M2LexTab;
+IMPORT M2Filename, M2LexTab;
 
 
-TYPE Source (* = OPAQUE *);
+TYPE M2Source = OPAQUE;
 
 TYPE Status =
   ( Success,
@@ -69,58 +67,61 @@ TYPE Status =
  * ---------------------------------------------------------------------------
  *)
 
-
-(* Operations *)
+(* Construtor *)
 
 PROCEDURE New
-  ( VAR s : Source; CONST filename : M2Filename; VAR status : Status );
+  ( VAR s : M2Source; CONST filename : String; VAR status : Status );
 (* Passes back a newly allocated source instance associated with name in s.
    The associated file is opened for reading and the lookahead position is
    set to the start position.  Passes back NIL in s if unsuccessful.
    The status of the operation is passed back in status. *)
 
 
-PROCEDURE GetChar ( s : Source; VAR ch, next : CHAR );
+(* Destructor *)
+
+PROCEDURE Release ( VAR s : M2Source; VAR status : Status );
+(* Deallocates s.  Passes back NIL in s if successful.
+   The status of the operation is passed back in status. *)
+
+
+(* Operations *)
+
+PROCEDURE GetChar ( s : M2Source; VAR ch, next : CHAR );
 (* Passes back the lookahead character in ch and consumes it.
    Passes back the new lookahead character in next without consuming it. *)
 
 
-PROCEDURE consumeChar ( s : source );
-(* Consumes the current character of s. *)
+PROCEDURE consumeChar ( s : M2ource ) : CHAR;
+(* Consumes the current character of s, returns new lookahead char. *)
 
 
-PROCEDURE lookaheadChar ( s : Source ) : CHAR;
+PROCEDURE lookaheadChar ( s : M2ource ) : CHAR;
 (* Returns the lookahead character of s.
    Does not consume any character and does not set eof. *)
 
 
-PROCEDURE la2Char ( s : Source ) : CHAR;
+PROCEDURE la2Char ( s : M2Source ) : CHAR;
 (* Returns the second lookahead character of s.
    Does not consume any character and does not set eof. *)
 
 
-PROCEDURE MarkLexeme ( s : Source; VAR line, col : CARDINAL );
+PROCEDURE MarkLexeme ( s : M2Source; VAR line, col : CARDINAL );
 (* Marks the lookahead position in s as the start of the marked lexeme.
    Passes back lookahead position line and column counters in line and col. *)
 
 
-PROCEDURE CopyLexeme ( s : Source; dict : LexDict; VAR handle : DictHandle );
+PROCEDURE CopyLexeme ( s : M2Source; dict : LexDict; VAR handle : DictHandle );
 (* Adds the marked lexeme in s to lexeme dictionary dict, passes its access
    handle back in handle and clears the lexeme marker.  If no lexeme marker
    has been set, no content is copied and zero is passed back in handle. *)
 
 
-PROCEDURE GetLineAndColumn ( s : Source; VAR line, col : CARDINAL );
+PROCEDURE GetLineAndColumn ( s : M2Source; VAR line, col : CARDINAL );
 (* Passes back the current line and column counters of s in line and col. *)
 
 
-PROCEDURE eof ( s : Source ) : BOOLEAN;
+PROCEDURE eof ( s : M2Source ) : BOOLEAN;
 (* Returns TRUE if the last character in s has been consumed, else FALSE. *)
-
-
-PROCEDURE Release ( VAR s : Source; VAR status : Status );
-(* Deallocates s.  Passes back NIL in s if successful.
-   The status of the operation is passed back in status. *)
 
 
 END M2Source.
