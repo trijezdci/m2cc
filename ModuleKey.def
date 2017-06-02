@@ -1,0 +1,23 @@
+(*!m2r10*) (* Copyright (c) 2016 B.Kowarsch. All rights reserved. *)
+
+DEFINITION MODULE ModuleKey;
+
+(* Module Key Generator for Modula-2 Core Compiler *)
+
+
+CONST
+  BitsPerKey = 128;
+  KeySize = BitsPerKey DIV 8;
+
+
+(* Key Type *)
+
+TYPE Key = ARRAY KeySize + 1 OF CHAR;
+
+
+(* Key Generator *)
+
+PROCEDURE GenKey ( VAR key : Key; CONST forBuffer : ARRAY OF CHAR ); 
+
+
+END ModuleKey.
