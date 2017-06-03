@@ -4,7 +4,7 @@ DEFINITION MODULE String;
 
 (* Variable Length String Library *)
 
-FROM Hash IMPORT Hash;
+IMPORT Hash;
 
 
 TYPE String = OPAQUE;
