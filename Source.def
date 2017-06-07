@@ -91,7 +91,7 @@ PROCEDURE GetChar ( s : Source; VAR ch, next : CHAR );
    Passes back the new lookahead character in next without consuming it. *)
 
 
-PROCEDURE consumeChar ( s : ource ) : CHAR;
+PROCEDURE consumeChar ( s : Source ) : CHAR;
 (* Consumes the current character of s, returns new lookahead char. *)
 
 
