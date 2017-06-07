@@ -1,10 +1,18 @@
 (*!m2r10*) (* Copyright (c) 2015 B.Kowarsch. All rights reserved. *)
 
-DEFINITION MODULE M2Token;
+DEFINITION MODULE Token;
 
-(* Token Definitions for Modula-2 R10 Bootstrap Compiler *)
+(* Token Definitions for Modula-2 R10 Core Compiler *)
 
-TYPE M2Token =
+
+(* Semantic Tokens *)
+
+TYPE Semantic = [Invalid..EOF] OF Token;
+
+
+(* Semantic and Non-Semantic Tokens *)
+
+TYPE Token =
   ( Invalid,         (* 0 *)
   
   (* Reserved Words *)
@@ -161,48 +169,53 @@ TYPE M2Token =
   (* Non-Resword Level-5 Operators *)
     TypeConv,      (* 124 *)
     
-  (* Comments & Pragmas *)
-    Comment,       (* 125 *)
-    Pragma,        (* 126 *)
-  
   (* End Of File Marker *)
-    EOF );         (* 127 *)
+    EOF,           (* 125 *)
+    
+  (* Non-Semantic Tokens *)
+  
+  (* Pragmas *)
+    Pragma,        (* 126 *)
+    
+  (* Comments *)
+    LineComment,   (* 127 *)
+    BlockComment); (* 128 *)
 
 
 (* Functions To Determine Token Classification *)
 
-PROCEDURE isResWord ( t : M2Token ) : BOOLEAN;
+PROCEDURE isResWord ( t : Token ) : BOOLEAN;
  (* Returns TRUE if t is a reserved word, otherwise FALSE. *)
 
-PROCEDURE isIdentifier ( t : M2Token ) : BOOLEAN;
+PROCEDURE isIdentifier ( t : Token ) : BOOLEAN;
  (* Returns TRUE if t is an identifier, otherwise FALSE. *)
 
-PROCEDURE isConstBindableIdent ( t : M2Token ) : BOOLEAN;
+PROCEDURE isConstBindableIdent ( t : Token ) : BOOLEAN;
  (* Returns TRUE if t is a constant bindable identifier, otherwise FALSE. *)
 
-PROCEDURE isProcBindableIdent ( t : M2Token ) : BOOLEAN;
+PROCEDURE isProcBindableIdent ( t : Token ) : BOOLEAN;
  (* Returns TRUE if t is a procedure bindable identifier, otherwise FALSE. *)
 
-PROCEDURE isNumber ( t : M2Token ) : BOOLEAN;
+PROCEDURE isNumber ( t : Token ) : BOOLEAN;
  (* Returns TRUE if t is a number literal, otherwise FALSE. *)
 
-PROCEDURE isCharOrString ( t : M2Token ) : BOOLEAN;
+PROCEDURE isCharOrString ( t : Token ) : BOOLEAN;
  (* Returns TRUE if t is a character or string, otherwise FALSE. *)
 
-PROCEDURE isOperL1 ( t : M2Token ) : BOOLEAN;
+PROCEDURE isOperL1 ( t : Token ) : BOOLEAN;
  (* Returns TRUE if t is a level-1 operator, otherwise FALSE. *)
 
-PROCEDURE isOperL2 ( t : M2Token ) : BOOLEAN;
+PROCEDURE isOperL2 ( t : Token ) : BOOLEAN;
  (* Returns TRUE if t is a level-2 operator, otherwise FALSE. *)
 
-PROCEDURE isOperL3 ( t : M2Token ) : BOOLEAN;
+PROCEDURE isOperL3 ( t : Token ) : BOOLEAN;
  (* Returns TRUE if t is a level-3 operator, otherwise FALSE. *)
 
-PROCEDURE isComment ( t : M2Token ) : BOOLEAN;
+PROCEDURE isComment ( t : Token ) : BOOLEAN;
  (* Returns TRUE if t is a comment, otherwise FALSE. *)
 
-PROCEDURE isPragma ( t : M2Token ) : BOOLEAN;
+PROCEDURE isPragma ( t : Token ) : BOOLEAN;
  (* Returns TRUE if t is a pragma, otherwise FALSE. *)
 
 
-END M2Token.
+END Token.
