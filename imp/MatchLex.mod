@@ -99,22 +99,110 @@ PROCEDURE NumericLiteral
 (* Matches the input in source to a numeric literal and consumes it. *)
 
 VAR
-  next : CHAR;
+  ch, next : CHAR;
 
 BEGIN
-  (* TO DO *)
+  
+  source.GetChar(ch, next);
+  
+  IF ch = '0' THEN
+        
+    CASE next OF
+    | '.' : (* sole '0' or real number *)
+      IF source.la2Char() # '.' THEN
+        (* real number found *)
+        next := matchRealNumberTail(source)        
+      END (* IF *)
+      
+    | 'b' : (* base-2 integer *)
+      next := matchBase2DigitSeq(source)
+      
+    | 'u' : (* character code *)
+      next := matchBase16DigitSeq(source)
+      
+    | 'x' : (* base-16 integer *)
+      next := matchBase16DigitSeq(source)
+      
+    END (* CASE *)
+       
+  ELSIF ch >= '1' AND ch <= '9' THEN
+    (* decimal integer or real number *)
+    next := matchDecimalNumberTail(source)    
+  END (* IF *)
+  
 END NumericLiteral;
 
 
+(* ---------------------------------------------------------------------------
+ * procedure QuotedLiteral ( source, diag )
+ *  matches the input in source to a quoted literal
+ * ---------------------------------------------------------------------------
+ * pre-conditions:
+ *  (1) s is the current input source and it must not be NIL.
+ *  (2) lookahead of s is the opening single or double quote.
+ *
+ * post-conditions:
+ *  (1) lookahead of s is the character immediately following the closing
+ *      single or double quote matching the opening quote that was the
+ *      lookahead of s upon entry into the procedure.
+ *
+ * error-conditions:
+ *  (1) illegal character encountered
+ *       TO DO
+ * ---------------------------------------------------------------------------
+ *)
 PROCEDURE QuotedLiteral
   ( source : Source; token : Token; VAR diag : Diagnostic );
 (* Matches the input in source to a quoted literal and consumes it. *)
 
 VAR
-  next : CHAR;
+  next, delimiter : CHAR;
 
 BEGIN
-  (* TO DO *)
+  
+  (* consume string delimiter *)
+  source.GetChar(delimiter, next);
+  
+  WHILE next # delimiter DO
+    
+    (* check for control characters *)
+    IF ASCII.isControl(next) THEN
+      
+      IF next = ASCII.NEWLINE THEN
+        
+        (* error: new line in string literal *)
+        
+      ELSIF source.eof() THEN
+        
+        (* error: EOF in string literal *)
+        
+      ELSE (* any other control character *)
+        
+        (* error: illegal character in string literal *)
+        
+      END (* IF *)
+    END (* IF *)
+    
+    (* check for escape sequence *)
+    IF next = ASCII.BACKSLASH THEN
+      
+      next := source.consumeChar();
+      
+      IF next # 'n' AND # = 't' AND next # ASCII.BACKSLASH THEN
+        
+        (* error: invalid escape sequence *)
+        
+      END (* IF *)
+    END (* IF *)
+    
+    next := source.consumeChar()
+  END (* WHILE *)
+  
+  (* consume closing delimiter *)
+  IF next = delimiter THEN
+    next := source.consumeChar();
+  END (* IF *)
+  
 END QuotedLiteral;
 
 
@@ -320,6 +408,48 @@ BEGIN
   END (* WHILE *)
     
 END DisabledCode;
+
+
+(* Private Procedures *)
+
+PROCEDURE matchDecimalNumberTail ( source : Source ) : CHAR;
+
+VAR
+  next : CHAR;
+  
+BEGIN
+
+END matchDecimalNumberTail;
+
+
+PROCEDURE matchRealNumberTail ( source : Source ) : CHAR;
+
+VAR
+  next : CHAR;
+  
+BEGIN
+
+END matchRealNumberTail;
+
+
+PROCEDURE matchBase2DigitSeq ( source : Source ) : CHAR;
+
+VAR
+  next : CHAR;
+  
+BEGIN
+
+END matchBase2DigitSeq;
+
+
+PROCEDURE matchBase16DigitSeq ( source : Source ) : CHAR;
+
+VAR
+  next : CHAR;
+  
+BEGIN
+
+END matchBase16DigitSeq;
 
 
 END MatchLex.
