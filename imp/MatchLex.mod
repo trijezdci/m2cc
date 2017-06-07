@@ -9,14 +9,35 @@ IMPORT ASCII, Capabilities, Source, Token;
 
 (* Semantic Symbols *)
 
-PROCEDURE Ident
-  ( source : Source; token : Token; VAR diag : Diagnostic );
-(* Matches the input in source to an identifier and consumes it.
+(* ---------------------------------------------------------------------------
+ * procedure Ident ( source, token )
+ *  matches the input in s to an identifier
+ * ---------------------------------------------------------------------------
+ * EBNF
  *
  * Ident :
  *   Letter LetterOrDigit* ( ( '_' | '$' ) LetterOrDigit+ )*
  *   ;
+ *
+ * pre-conditions:
+ *  (1) s is the current input source and it must not be NIL.
+ *  (2) lookahead of s is the first character of the identifier.
+ *
+ * post-conditions:
+ *  (1) lookahead of s is the character immediately following the last
+ *      character of the identifier whose first character was the
+ *      lookahead of s upon entry into the procedure.
+ *  (2) token value identifier is passed back in token.
+ *
+ * error-conditions:
+ *  (1) identifier consists entirely of non-alphanumeric characters
+ *       TO DO
+ *  (2) maximum length exceeded
+ *       TO DO
+ * ---------------------------------------------------------------------------
  *)
+PROCEDURE Ident
+  ( source : Source; token : Token; VAR diag : Diagnostic );
 
 VAR
   next : CHAR;
@@ -44,8 +65,14 @@ END Ident;
 
 (* ---------------------------------------------------------------------------
  * procedure IdentOrResword ( source, token )
- *  matches the input in s to a reserved word or identifier
+ *  matches the input in s to an identifier or reserved word
  * ---------------------------------------------------------------------------
+ * EBNF
+ *
+ * Ident :
+ *   Letter LetterOrDigit* ( ( '_' | '$' ) LetterOrDigit+ )*
+ *   ;
+ *
  * pre-conditions:
  *  (1) s is the current input source and it must not be NIL.
  *  (2) lookahead of s is the first character of the identifier or RW.
@@ -120,6 +147,17 @@ END IdentOrResword;
  * procedure NumericLiteral ( source, token )
  *  matches the input in s to a numeric literal
  * ---------------------------------------------------------------------------
+ * EBNF
+ *
+ * NumericLiteral :
+ *   '0' ( RealNumberTail | NonDecimalNumberTail )? |
+ *   ( '1' .. '9' ) DecimalNumberTail?
+ *   ;
+ *
+ * NonDecimalNumberTail :
+ *   'b' Base2DigitSeq | ( 'u' | 'x' ) Base16DigitSeq
+ *   ;
+ *
  * pre-conditions:
  *  (1) s is the current input source and it must not be NIL.
  *  (2) lookahead of s is the first digit of the literal.
@@ -148,7 +186,6 @@ END IdentOrResword;
  *)
 PROCEDURE NumericLiteral
   ( source : Source; token : Token; VAR diag : Diagnostic );
-(* Matches the input in source to a numeric literal and consumes it. *)
 
 VAR
   ch, next : CHAR;
@@ -189,6 +226,20 @@ END NumericLiteral;
  * procedure QuotedLiteral ( source, token )
  *  matches the input in s to a quoted literal
  * ---------------------------------------------------------------------------
+ * EBNF
+ *
+ * QuotedLiteral :
+ *   SingleQuotedLiteral | DoubleQuotedLiteral
+ *   ;
+ *
+ * SingleQuotedLiteral :
+ *   "'" ( QuotableCharacter | '"' )* "'"
+ *   ;
+ *
+ * DoubleQuotedLiteral :
+ *   '"' ( QuotableCharacter | "'" )* '"'
+ *   ;
+ *
  * pre-conditions:
  *  (1) s is the current input source and it must not be NIL.
  *  (2) lookahead of s is the opening quotation mark of the literal.
@@ -214,7 +265,6 @@ END NumericLiteral;
  *)
 PROCEDURE QuotedLiteral
   ( source : Source; token : Token; VAR diag : Diagnostic );
-(* Matches the input in source to a quoted literal and consumes it. *)
 
 VAR
   next, delimiter : CHAR;
@@ -271,6 +321,12 @@ END QuotedLiteral;
  * procedure ChevronText ( source, token )
  *  matches the input in s to chevron text
  * ---------------------------------------------------------------------------
+ * EBNF
+ *
+ * ChevronText :
+ *   "<<" ( QuotableCharacter | "'" | '"' )* ">>"
+ *   ;
+ *
  * pre-conditions:
  *  (1) s is the current input source and it must not be NIL.
  *  (2) lookahead of s is the first character of the opening chevron.
@@ -306,6 +362,12 @@ END ChevronText;
  * procedure Pragma ( source, diag )
  *  matches the input in source to a pragma
  * ---------------------------------------------------------------------------
+ * EBNF
+ *
+ * Pragma :
+ *   "<*" ( QuotableCharacter | QuotedLiteral )* "*>"
+ *   ;
+ *
  * pre-conditions:
  *  (1) s is the current input source and it must not be NIL.
  *  (2) lookahead of s is the first character of the opening pragma delimiter.
@@ -364,6 +426,12 @@ BEGIN
  * procedure LineComment ( source, diag )
  *  matches the input in source to a line comment
  * ---------------------------------------------------------------------------
+ * EBNF
+ *
+ * LineComment :
+ *   "!" CommentCharacter* EndOfLine
+ *   ;
+ *
  * pre-conditions:
  *  (1) s is the current input source and it must not be NIL.
  *  (2) lookahead of s is the opening exclamation point of a line comment.
@@ -402,6 +470,12 @@ END LineComment;
  * procedure BlockComment ( source, diag )
  *  matches the input in source to a block comment
  * ---------------------------------------------------------------------------
+ * EBNF
+ *
+ * BlockComment :
+ *   '(' '*' ( CommentCharacter | BlockComment | EndOfLine )* '*' ')'
+ *   ;
+ *
  * pre-conditions:
  *  (1) s is the current input source and it must not be NIL.
  *  (2) lookahead of s is the opening parenthesis of a block comment.
@@ -461,6 +535,14 @@ END BlockComment;
  * procedure DisabledCode ( source, diag )
  *  matches the input in source to a disabled code block
  * ---------------------------------------------------------------------------
+ * EBNF
+ *
+ * DisabledCode :
+ *   ( StartOfSourceFile | EndOfLine ) '?' '<'
+ *   ( PrintableCharacter | Tabulator | EndOfLine )*
+ *   EndOfLine '>' '?'
+ *   ;
+ *
  * pre-conditions:
  *  (1) s is the current input source and it must not be NIL.
  *  (2) lookahead of s is the opening '?' of a disabled code block.
@@ -513,43 +595,143 @@ END DisabledCode;
 
 (* Private Procedures *)
 
+(* ---------------------------------------------------------------------------
+ * procedure matchDecimalNumberTail ( source, diag )
+ *  matches the input in source to a decimal number tail
+ * ---------------------------------------------------------------------------
+ * EBNF
+ *
+ * DecimalNumberTail :
+ *   ;
+ *
+ * pre-conditions:
+ *  (1) s is the current input source and it must not be NIL.
+ *  (2) lookahead of s is a digit between 1 and 9 or a decimal point.
+ *
+ * post-conditions:
+ *  (1) lookahead of s is the character immediately following the last digit
+ *      of the literal whose first digit was the lookahead of s upon entry
+ *      into the procedure.
+ *
+ * error-conditions:
+ *  (1) illegal character encountered
+ *       TO DO
+ * ---------------------------------------------------------------------------
+ *)
 PROCEDURE matchDecimalNumberTail ( source : Source ) : CHAR;
 
 VAR
   next : CHAR;
   
 BEGIN
-
+  
+  (* TO DO *)
+  
 END matchDecimalNumberTail;
 
 
+(* ---------------------------------------------------------------------------
+ * procedure matchRealNumberTail ( source, diag )
+ *  matches the input in source to a real number tail
+ * ---------------------------------------------------------------------------
+ * EBNF
+ *
+ * RealNumberTail :
+ *   ;
+ *
+ * pre-conditions:
+ *  (1) s is the current input source and it must not be NIL.
+ *  (2) lookahead of s is a decimal point.
+ *
+ * post-conditions:
+ *  (1) lookahead of s is the character immediately following the last digit
+ *      of the literal whose decimal point was the lookahead of s upon entry
+ *      into the procedure.
+ *
+ * error-conditions:
+ *  (1) illegal character encountered
+ *       TO DO
+ * ---------------------------------------------------------------------------
+ *)
 PROCEDURE matchRealNumberTail ( source : Source ) : CHAR;
 
 VAR
   next : CHAR;
   
 BEGIN
-
+  
+  (* TO DO *)
+  
 END matchRealNumberTail;
 
 
+(* ---------------------------------------------------------------------------
+ * procedure matchBase2DigitSeq ( source, diag )
+ *  matches the input in source to a base-2 digit sequence
+ * ---------------------------------------------------------------------------
+ * EBNF
+ *
+ * Base2DigitSeq :
+ *   ;
+ *
+ * pre-conditions:
+ *  (1) s is the current input source and it must not be NIL.
+ *  (2) lookahead of s is a base-2 digit.
+ *
+ * post-conditions:
+ *  (1) lookahead of s is the character immediately following the last digit
+ *      of the literal whose first digit was the lookahead of s upon entry
+ *      into the procedure.
+ *
+ * error-conditions:
+ *  (1) illegal character encountered
+ *       TO DO
+ * ---------------------------------------------------------------------------
+ *)
 PROCEDURE matchBase2DigitSeq ( source : Source ) : CHAR;
 
 VAR
   next : CHAR;
   
 BEGIN
-
+  
+  (* TO DO *)
+  
 END matchBase2DigitSeq;
 
 
+(* ---------------------------------------------------------------------------
+ * procedure matchBase16DigitSeq ( source, diag )
+ *  matches the input in source to a base-16 digit sequence
+ * ---------------------------------------------------------------------------
+ * EBNF
+ *
+ * Base16DigitSeq :
+ *   ;
+ *
+ * pre-conditions:
+ *  (1) s is the current input source and it must not be NIL.
+ *  (2) lookahead of s is a base-16 digit.
+ *
+ * post-conditions:
+ *  (1) lookahead of s is the character immediately following the last digit
+ *      of the literal whose first digit was the lookahead of s upon entry
+ *      into the procedure.
+ *
+ * error-conditions:
+ *  (1) illegal character encountered
+ *       TO DO
+ * ---------------------------------------------------------------------------
+ *)
 PROCEDURE matchBase16DigitSeq ( source : Source ) : CHAR;
 
 VAR
   next : CHAR;
   
 BEGIN
-
+  
+  (* TO DO *)
+  
 END matchBase16DigitSeq;
 
 
