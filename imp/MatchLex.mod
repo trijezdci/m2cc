@@ -42,10 +42,32 @@ BEGIN
 END Ident;
 
 
+(* ---------------------------------------------------------------------------
+ * procedure IdentOrResword ( source, token )
+ *  matches the input in s to a reserved word or identifier
+ * ---------------------------------------------------------------------------
+ * pre-conditions:
+ *  (1) s is the current input source and it must not be NIL.
+ *  (2) lookahead of s is the first character of the identifier or RW.
+ *
+ * post-conditions:
+ *  (1) lookahead of s is the character immediately following the last
+ *      character of the identifier or RW whose first character was the
+ *      lookahead of s upon entry into the procedure.
+ *  (2) if the input represents a reserved word or dual-use identifier,
+ *       its token value is passed back in token.
+ *      if the input represents any other identifier,
+ *       token value identifier is passed back in token.
+ *
+ * error-conditions:
+ *  (1) identifier consists entirely of non-alphanumeric characters
+ *       TO DO
+ *  (2) maximum length exceeded
+ *       TO DO
+ * ---------------------------------------------------------------------------
+ *)
 PROCEDURE IdentOrResword
   ( source : Source; token : Token; VAR diag : Diagnostic );
-(* Matches the input in source to an identifier or reserved word
-   and consumes it. *)
 
 VAR
   next : CHAR;
@@ -94,6 +116,36 @@ BEGIN
 END IdentOrResword;
 
 
+(* ---------------------------------------------------------------------------
+ * procedure NumericLiteral ( source, token )
+ *  matches the input in s to a numeric literal
+ * ---------------------------------------------------------------------------
+ * pre-conditions:
+ *  (1) s is the current input source and it must not be NIL.
+ *  (2) lookahead of s is the first digit of the literal.
+ *
+ * post-conditions:
+ *  (1) lookahead of s is the character immediately following the last digit
+ *      of the literal whose first digit was the lookahead of s upon entry
+ *      into the procedure.
+ *  (2) if the numeric literal represents a whole number,
+ *       token value WholeNumber is passed back in token.
+ *      if the numeric literal represents a character code,
+ *       token value QuotedChar is passed back in token.
+ *      if the numeric literal represents a real number,
+ *       token value RealNumber is passed back in token.
+ *
+ * error-conditions:
+ *  (1) missing digit after prefix
+ *       TO DO
+ *  (2) missing fractional part after decimal point
+ *       TO DO
+ *  (3) missing exponent part after exponent prefix
+ *       TO DO
+ *  (4) maximum length exceeded
+ *       TO DO
+ * ---------------------------------------------------------------------------
+ *)
 PROCEDURE NumericLiteral
   ( source : Source; token : Token; VAR diag : Diagnostic );
 (* Matches the input in source to a numeric literal and consumes it. *)
@@ -134,20 +186,29 @@ END NumericLiteral;
 
 
 (* ---------------------------------------------------------------------------
- * procedure QuotedLiteral ( source, diag )
- *  matches the input in source to a quoted literal
+ * procedure QuotedLiteral ( source, token )
+ *  matches the input in s to a quoted literal
  * ---------------------------------------------------------------------------
  * pre-conditions:
  *  (1) s is the current input source and it must not be NIL.
- *  (2) lookahead of s is the opening single or double quote.
+ *  (2) lookahead of s is the opening quotation mark of the literal.
  *
  * post-conditions:
  *  (1) lookahead of s is the character immediately following the closing
- *      single or double quote matching the opening quote that was the
- *      lookahead of s upon entry into the procedure.
+ *      quotation mark that closes the literal whose opening quotation mark
+ *      was the lookahead of s upon entry into the procedure.
+ *  (2) if the quoted literal represents the empty string or a single
+ *      character, token value quotedChar is passed back in token.
+ *      Otherwise, token value quotedString is passed back in token.
  *
  * error-conditions:
- *  (1) illegal character encountered
+ *  (1) eof reached
+ *       TO DO
+ *  (2) illegal character encountered
+ *       TO DO
+ *  (3) unescaped backslash encountered
+ *       TO DO
+ *  (4) maximum length exceeded
  *       TO DO
  * ---------------------------------------------------------------------------
  *)
@@ -206,6 +267,39 @@ BEGIN
 END QuotedLiteral;
 
 
+(* ---------------------------------------------------------------------------
+ * procedure ChevronText ( source, token )
+ *  matches the input in s to chevron text
+ * ---------------------------------------------------------------------------
+ * pre-conditions:
+ *  (1) s is the current input source and it must not be NIL.
+ *  (2) lookahead of s is the first character of the opening chevron.
+ *
+ * post-conditions:
+ *  (1) lookahead of s is the character immediately following the last
+ *      character of the closing chevron that closes the chevron text whose
+ *      opening delimiter was the lookahead of s upon entry into the procedure.
+ *  (2) token value chevronText is passed back in token
+ *
+ * error-conditions:
+ *  (1) eof reached
+ *       TO DO
+ *  (2) illegal character encountered
+ *       TO DO
+ *  (3) maximum length exceeded
+ *       TO DO
+ * ---------------------------------------------------------------------------
+ *)
+PROCEDURE MatchChevronText
+  ( source : Source; VAR token : Token; VAR diag : Diagnostic );
+
+BEGIN
+
+  (* TO DO *)
+
+END ChevronText;
+
+
 (* Non-Semantic Symbols *)
 
 (* ---------------------------------------------------------------------------
@@ -214,15 +308,20 @@ END QuotedLiteral;
  * ---------------------------------------------------------------------------
  * pre-conditions:
  *  (1) s is the current input source and it must not be NIL.
- *  (2) lookahead of s is the '<' of the opening pragma delimiter.
+ *  (2) lookahead of s is the first character of the opening pragma delimiter.
  *
  * post-conditions:
- *  (1) lookahead of s is the character immediately following the closing '>'
- *      that closes the pragma whose opening '<' was the lookahead of s upon
- *      entry into the procedure.
+ *  (1) lookahead of s is the character immediately following the last
+ *      character of the closing delimiter that closes the pragma whose
+ *      opening delimiter was the lookahead of s upon entry into the procedure.
+ *  (2) token value pragma is passed back in token
  *
  * error-conditions:
- *  (1) illegal character encountered
+ *  (1) eof reached
+ *       TO DO
+ *  (2) illegal character encountered
+ *       TO DO
+ *  (3) maximum length exceeded
  *       TO DO
  * ---------------------------------------------------------------------------
  *)
@@ -272,10 +371,11 @@ BEGIN
  * post-conditions:
  *  (1) if the comment is terminated by end-of-line:
  *       lookahead of s is the new-line character that closes the line comment
- *       whose opening delimiter was the lookahead of s upon entry
+ *       whose opening exclamation point was the lookahead of s upon entry
  *       into the procedure, or
  *      if the comment is terminated by end-of-file:
  *       the last character in input s has been consumed.
+ *  (2) token value lineComment is passed back in token
  *
  * error-conditions:
  *  (1) illegal character encountered
@@ -294,7 +394,7 @@ BEGIN
   REPEAT
     next := source.consumeChar();
   UNTIL source.eof() OR (next = ASCII.NEWLINE);
-  
+    
 END LineComment;
 
 
@@ -310,6 +410,7 @@ END LineComment;
  *  (1) lookahead of s is the character immediately following the closing
  *      parenthesis that closes the block comment whose opening parenthesis
  *      was the lookahead of s upon entry into the procedure.
+ *  (2) token value blockComment is passed back in token
  *
  * error-conditions:
  *  (1) eof reached
