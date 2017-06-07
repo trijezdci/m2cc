@@ -4,7 +4,7 @@ IMPLEMENTATION MODULE Lexer;
 
 (* Lexer for Modula-2 R10 Core Compiler *)
 
-IMPORT ASCII, Capabilities, Source, Token, Symbol;
+IMPORT ASCII, Capabilities, Source, Token, Symbol, MatchLex;
 
 
 (* Lexer Type *)
@@ -74,8 +74,7 @@ BEGIN
   (* read the first symbol to be returned *)
   newLexer^.nextSymbol := newLexer.consumeSym();
   
-  s := Status.Success;
-  RETURN
+  s := Status.Success
 END New;
 
 
@@ -154,30 +153,30 @@ BEGIN
   IF source.eof() THEN
     sym.token := Token.EOF;
     sym.lexeme := 0
-  
+    
   (* check for reserved word or identifier *)
-  ELSIF ASCII.isLetter(next) THEN
+  ELSIF next >= "A" AND next <= "Z" THEN
     source.MarkLexeme(sym.line, sym.column);
-    MatchResWordOrIdent(source, sym.token);
+    MatchLex.IdentOrResword(source, sym.token);
     source.CopyLexeme(self^.dict, sym.lexeme)
-
+    
+  (* check for identifier *)
+  ELSIF (next >= "a" AND next <= "z") OR
+    (next = "$" AND Capabilities.dollarIdentifiers()) THEN
+    source.MarkLexeme(sym.line, sym.column);
+    MatchLex.Ident(source, sym.token);
+    source.CopyLexeme(self^.dict, sym.lexeme)
+    
   (* check for numeric literal *)
   ELSIF next >= "0" AND next <= "9" THEN 
     source.MarkLexeme(sym.line, sym.column);
-    MatchNumericLiteral(source, sym.token);
+    MatchLex.NumericLiteral(source, sym.token);
     source.CopyLexeme(self^.dict, sym.lexeme)
-
+    
   (* check for quoted literal *)
   ELSIF next = ASCII.SINGLEQUOTE OR next = ASCII.DOUBLEQUOTE THEN
     source.MarkLexeme(sym.line, sym.column);
-    MatchQuotedLiteral(source, sym.token);
-    source.CopyLexeme(self^.dict, sym.lexeme)
-    
-  (* check for optional OpenVMS identifier starting with "$" *)
-  ELSIF next = "$" AND
-        Capabilities.isEnabled(Capabilities.OpenVMSIdentifiers) THEN
-    source.MarkLexeme(sym.line, sym.column);
-    MatchOpenVMSIdent(source, sym.token);
+    MatchLex.QuotedLiteral(source, sym.token);
     source.CopyLexeme(self^.dict, sym.lexeme)
     
   (* check for any other symbol *)
@@ -187,7 +186,7 @@ BEGIN
     (* next symbol is line comment *)
     | "!" :
         source.MarkLexeme(sym.line, sym.column);
-        MatchLineComment(source, sym.token);
+        MatchLex.LineComment(source, sym.token);
         source.CopyLexeme(self^.dict, sym.lexeme)
     
     (* next symbol is "#" *)
@@ -208,7 +207,7 @@ BEGIN
     | "(" :
         IF source.la2Char() = "*" THEN (* found block comment *)
           source.MarkLexeme(sym.line, sym.column);
-          MatchBlockComment(source, sym.token);
+          MatchLex.BlockComment(source, sym.token);
           source.CopyLexeme(self^.dict, sym.lexeme)
         
         ELSE (* found "(" *)
@@ -348,12 +347,12 @@ BEGIN
         
         IF la2 = "<" THEN (* found "<<" *)
           source.MarkLexeme(sym.line, sym.column);
-          MatchChevronText(source, sym.token);
+          MatchLex.ChevronText(source, sym.token);
           source.CopyLexeme(self^.dict, sym.lexeme)
         
         ELSIF la2 = "*" THEN (* found "<*" *)
           source.MarkLexeme(sym.line, sym.column);
-          MatchPragma(source, sym.token);
+          MatchLex.Pragma(source, sym.token);
           source.CopyLexeme(self^.dict, sym.lexeme)
           
         ELSE (* "<", "<=" or "<> "*)
@@ -545,7 +544,6 @@ END status;
  * ---------------------------------------------------------------------------
  *)
 PROCEDURE warnCount ( self : Lexer ) : CARDINAL; (* PURE *)
- (* Returns the lexer's accumulated warning count. *)
 
 BEGIN
   RETURN self^.warnings
@@ -567,7 +565,6 @@ END warnCount;
  * ---------------------------------------------------------------------------
  *)
 PROCEDURE errorCount ( self : Lexer ) : CARDINAL; (* PURE *)
- (* Returns the lexer's accumulated error count. *)
 
 BEGIN
   RETURN self^.errors
@@ -603,370 +600,6 @@ BEGIN
   RELEASE lexer
   
 END Release;
-
-
-(* Private Operations *)
-
-(* ---------------------------------------------------------------------------
- * procedure matchResWordOrIdent ( s, t, diag )
- *  matches the input in s to a reserved word or identifier
- * ---------------------------------------------------------------------------
- * pre-conditions:
- *  (1) s is the current input source and it must not be NIL.
- *  (2) lookahead of s is the first character of the RW or identifier.
- *
- * post-conditions:
- *  (1) lookahead of s is the character immediately following the last
- *      character of the RW or identifier whose first character was the
- *      lookahead of s upon entry into the procedure.
- *  (2) if the input represents a reserved word or dual-use identifier,
- *       its token value is passed back in token.
- *      if the input represents any other identifier,
- *       token value identifier is passed back in token.
- *
- * error-conditions:
- *  (1) identifier consists entirely of non-alphanumeric characters
- *       TO DO
- *  (2) maximum length exceeded
- *       TO DO
- * ---------------------------------------------------------------------------
- *)
-PROCEDURE MatchResWordOrIdent
-  ( source : Source; VAR token : Token; VAR diag : Diagnostic );
-
-VAR
-  ch, next : CHAR;
-  allChars, upperChars, nonStdChars : CARDINAL;
-  
-BEGIN
-  
-  allChars := 0;
-  upperChars := 0;
-  nonStdChars := 0;
-  
-  REPEAT
-    source.GetChar(ch, next);
-    allChars++;
-    
-    IF (ch >= "A") AND (ch <= "Z") THEN
-      upperChars++
-    END;
-    
-    IF (ch = "_") OR (ch = "$") THEN
-      nonStdChars++
-    END
-    
-  UNTIL source.eof() OR NOT ASCII.isIdentChar(next);
-  
-  IF allChars = upperChars THEN (* possibly reserved word found *)
-    (* TO DO : check for reserved word *)
-    
-  ELSIF allChars = nonStdChars THEN (* illegal identifier found *)
-    LexDiag.New(diag, illegalIdent, 0, 0, "")
-    
-  END
-  
-END MatchResWordOrIdent;
-
-
-(* ---------------------------------------------------------------------------
- * procedure matchNumericLiteral ( s, t, diag )
- *  matches the input in s to numeric literal syntax
- * ---------------------------------------------------------------------------
- * pre-conditions:
- *  (1) s is the current input source and it must not be NIL.
- *  (2) lookahead of s is the first digit of the literal.
- *
- * post-conditions:
- *  (1) lookahead of s is the character immediately following the last digit
- *      of the literal whose first digit was the lookahead of s upon entry
- *      into the procedure.
- *  (2) if the numeric literal represents a whole number,
- *       token value wholeNumber is passed back in token.
- *      if the numeric literal represents a character code,
- *       token value quotedChar is passed back in token.
- *      if the numeric literal represents a real number,
- *       token value realNumber is passed back in token.
- *
- * error-conditions:
- *  (1) missing digit after prefix
- *       TO DO
- *  (2) missing fractional part after decimal point
- *       TO DO
- *  (3) missing exponent part after exponent prefix
- *       TO DO
- *  (4) maximum length exceeded
- *       TO DO
- * ---------------------------------------------------------------------------
- *)
-PROCEDURE MatchNumericLiteral
-  ( source : Source; VAR token : Token; VAR diag : Diagnostic );
-
-BEGIN
-  
-  source.GetChar(ch, next);
-  IF ch = "0" THEN
-          
-    CASE next OF
-    | "'" : (* decimal number *)
-    | "." : (* real number or range *)
-    | "b" : (* base-2 whole number *)
-    | "u" : (* base-16 character code *)
-    | "x" : (* base-16 whole number *)
-    
-    ELSE (* single digit zero *)
-      (* TO DO *)
-    
-    END; (* CASE *)
-      
-  ELSE
-  
-  END
-  (* TO DO *)
-
-END MatchNumericLiteral;
-
-
-(* ---------------------------------------------------------------------------
- * procedure matchQuotedLiteral ( s, t, diag )
- *  matches the input in s to quoted literal syntax
- * ---------------------------------------------------------------------------
- * pre-conditions:
- *  (1) s is the current input source and it must not be NIL.
- *  (2) lookahead of s is the opening quotation mark of the literal.
- *
- * post-conditions:
- *  (1) lookahead of s is the character immediately following the closing
- *      quotation mark that closes the literal whose opening quotation mark
- *      was the lookahead of s upon entry into the procedure.
- *  (2) if the quoted literal represents the empty string or a single
- *      character, token value quotedChar is passed back in token.
- *      Otherwise, token value quotedString is passed back in token.
- *
- * error-conditions:
- *  (1) eof reached
- *       TO DO
- *  (2) illegal character encountered
- *       TO DO
- *  (3) unescaped backslash encountered
- *       TO DO
- *  (4) maximum length exceeded
- *       TO DO
- * ---------------------------------------------------------------------------
- *)
-PROCEDURE MatchQuotedLiteral
-  ( source : Source; VAR token : Token; VAR diag : Diagnostic );
-
-VAR
-  delimiter, ch, next : CHAR;
-  len : CARDINAL;
-
-BEGIN
-  
-  len := 0;
-  source.GetChar(delimiter, next);
-  
-  WHILE NOT source.eof() AND
-        next # delimiter AND
-        ASCII.isPrintable(next) DO
-    
-    IF next # ASCII.BACKSLASH THEN
-      source.GetChar(ch, next);
-      len++
-      
-    ELSE (* backslash *)
-      MatchEscapeSequence(source, success);
-      
-      IF NOT success THEN (* unescaped backslash found *)
-        (* TO DO : handle error *)
-        
-      END
-    END
-  END; (* WHILE *)
-  
-  IF next = delimiter THEN
-    source.ConsumeChar();
-    len++
-    
-  ELSE (* illegal character in string literal found *)
-    (* TO DO : handle error *)
-    
-  END;
-  
-  IF len <= 1 THEN
-    token := Token.QuotedChar
-    
-  ELSE (* len > 1 *)
-    token := Token.QuotedString
-    
-  END
-  
-END MatchQuotedLiteral;
-
-
-(* ---------------------------------------------------------------------------
- * procedure MatchLineComment ( s, t, diag )
- *  matches the input in s to line comment syntax
- * ---------------------------------------------------------------------------
- * pre-conditions:
- *  (1) s is the current input source and it must not be NIL.
- *  (2) lookahead of s is the opening exclamation point of a line comment.
- *
- * post-conditions:
- *  (1) if the comment is terminated by end-of-line:
- *       lookahead of s is the new-line character that closes the line comment
- *       whose opening exclamation point was the lookahead of s upon entry
- *       into the procedure, or
- *      if the comment is terminated by end-of-file:
- *       the last character in input s has been consumed.
- *  (2) token value lineComment is passed back in token
- *
- * error-conditions:
- *  (1) illegal character encountered
- *       TO DO
- *  (2) maximum comment length exceeded
- *       TO DO
- * ---------------------------------------------------------------------------
- *)
-PROCEDURE matchLineComment
-  ( source : Source; VAR token : Token; VAR diag : Diagnostic );
-
-VAR
-  ch, next : CHAR;
-  
-BEGIN
-
-  REPEAT
-    source.GetChar(ch, next)
-  UNTIL source.eof() OR (next = ASCII.NEWLINE);
-  
-  token := Token.LineComment
-
-END MatchLineComment;
-
-
-(* ---------------------------------------------------------------------------
- * procedure MatchBlockComment ( s, t, diag )
- *  matches the input in s to block comment syntax
- * ---------------------------------------------------------------------------
- * pre-conditions:
- *  (1) s is the current input source and it must not be NIL.
- *  (2) lookahead of s is the opening parenthesis of a block comment.
- *
- * post-conditions:
- *  (1) lookahead of s is the character immediately following the closing
- *      parenthesis that closes the block comment whose opening parenthesis
- *      was the lookahead of s upon entry into the procedure.
- *  (2) token value blockComment is passed back in token
- *
- * error-conditions:
- *  (1) eof reached
- *       TO DO
- *  (2) illegal character encountered
- *       TO DO
- *  (3) maximum comment length exceeded
- *       TO DO
- *  (4) maximum nesting level exceeded
- *       TO DO
- * ---------------------------------------------------------------------------
- *)
-PROCEDURE MatchBlockComment
-  ( source : Source; VAR token : Token; VAR diag : Diagnostic );
-
-VAR
-  ch, next : CHAR;
-  nestLevel : CARDINAL;
-  
-BEGIN
-  
-  nestLevel := 1;
-  
-  WHILE NOT source.eof() AND (nestLevel > 0) DO
-    source.GetChar(ch, next);
-    
-    IF (ch = "*") AND (next = ")") THEN
-      source.ConsumeChar();
-      nestLevel--
-    
-    ELSIF (ch = "(") AND (next = "*") THEN
-      source.ConsumeChar();
-      nestLevel++
-      
-    END;
-    
-    source.ConsumeChar()
-    
-  END; (* WHILE *)
-  
-  (* TO DO *)
-
-END MatchBlockComment;
-
-
-(* ---------------------------------------------------------------------------
- * procedure MatchChevronText ( s, t, diag )
- *  matches the input in s to chevron text syntax
- * ---------------------------------------------------------------------------
- * pre-conditions:
- *  (1) s is the current input source and it must not be NIL.
- *  (2) lookahead of s is the first character of the opening chevron.
- *
- * post-conditions:
- *  (1) lookahead of s is the character immediately following the last
- *      character of the closing chevron that closes the chevron text whose
- *      opening delimiter was the lookahead of s upon entry into the procedure.
- *  (2) token value chevronText is passed back in token
- *
- * error-conditions:
- *  (1) eof reached
- *       TO DO
- *  (2) illegal character encountered
- *       TO DO
- *  (3) maximum length exceeded
- *       TO DO
- * ---------------------------------------------------------------------------
- *)
-PROCEDURE MatchChevronText
-  ( source : Source; VAR token : Token; VAR diag : Diagnostic );
-
-BEGIN
-
-  (* TO DO *)
-
-END MatchChevronText;
-
-
-(* ---------------------------------------------------------------------------
- * procedure MatchPragma ( s, t, diag )
- *  matches the input in s to "<*" any legal characters "*>"
- * ---------------------------------------------------------------------------
- * pre-conditions:
- *  (1) s is the current input source and it must not be NIL.
- *  (2) lookahead of s is the first character of the opening pragma delimiter.
- *
- * post-conditions:
- *  (1) lookahead of s is the character immediately following the last
- *      character of the closing delimiter that closes the pragma whose
- *      opening delimiter was the lookahead of s upon entry into the procedure.
- *  (2) token value pragma is passed back in token
- *
- * error-conditions:
- *  (1) eof reached
- *       TO DO
- *  (2) illegal character encountered
- *       TO DO
- *  (3) maximum length exceeded
- *       TO DO
- * ---------------------------------------------------------------------------
- *)
-PROCEDURE MatchPragma
-  ( source : Source; VAR token : Token; VAR diag : Diagnostic );
-
-BEGIN
-
-  (* TO DO *)
-
-END MatchPragma;
 
 
 END Lexer.
