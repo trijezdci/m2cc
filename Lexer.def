@@ -10,7 +10,7 @@ IMPORT Symbol, Filename;
 
 (* Lexer Type *)
 
-TYPE M2Lexer = OPAQUE;
+TYPE Lexer = OPAQUE;
 
 
 (* Lexer Status *)
