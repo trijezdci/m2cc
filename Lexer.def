@@ -1,0 +1,65 @@
+(*!m2r10*) (* Copyright (c) 2015 B.Kowarsch. All rights reserved. *)
+
+DEFINITION MODULE Lexer;
+
+(* Lexer for Modula-2 R10 Core Compiler *)
+
+
+IMPORT Symbol, Filename;
+
+
+(* Lexer Type *)
+
+TYPE M2Lexer = OPAQUE;
+
+
+(* Lexer Status *)
+
+TYPE Status =
+  ( Success,
+    AlreadyInitialised,
+    UnableToAllocate,
+    IllegalSymbolFound,
+    UnescapedBackslash,
+    IllegalCharInCharOrString,
+    EndOfLineInCharOrString,
+    LexemeCapacityExceded,
+    CommentNestingLimitExceded,
+    PrematureEndOfFile );
+
+
+(* Constructor *)
+
+PROCEDURE New ( VAR lexer : Lexer; filename : Filename; VAR s : Status );
+(* Create newly allocated and initialised lexer instance associated with
+   source file filename.  Passes back the status of the operation in s. *)
+
+
+(* Destructor *)
+
+PROCEDURE Release ( VAR lexer : Lexer );
+ (* Release lexer instance. Passes back NIL in lexer if successful. *)
+
+
+(* Static Methods *)
+
+PROCEDURE GetSym ( self : Lexer; VAR current, next : Symbol );
+(* Passes back the current lookahead symbol in current and consumes it.
+   Passes back the new lookahead symbol in next without consuming it. *)
+
+PROCEDURE consumeSym ( self : Lexer ) : Symbol;
+(* Returns the current lookahead symbol and consumes it. *)
+
+PROCEDURE lookaheadSym ( self : Lexer ) : Symbol;
+(* Returns the current lookahead symbol without consuming it. *)
+
+PROCEDURE warnCount ( self : Lexer ) : CARDINAL;
+ (* Returns the lexer's accumulated warning count. *)
+
+PROCEDURE errorCount ( self : Lexer ) : CARDINAL;
+ (* Returns the lexer's accumulated error count. *)
+
+PROCEDURE status ( self : Lexer ) : Status;
+(* Returns the status of the last operation. *)
+
+END Lexer.
