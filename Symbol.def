@@ -1,20 +1,20 @@
 (*!m2r10*) (* Copyright (c) 2015 B.Kowarsch. All rights reserved. *)
 
-DEFINITION MODULE M2Symbol;
+DEFINITION MODULE Symbol;
 
 (* Symbol Definition for Modula-2 R10 Bootstrap Compiler *)
 
-IMPORT M2Token, LexTab, LexDiag;
+IMPORT Token, LexTab, LexDiag;
 
 
 (* Symbol to be returned by lexer *)
 
-TYPE M2Symbol = RECORD
-  token : M2Token;
+TYPE Symbol = RECORD
+  token : Token;
   line, col : CARDINAL;
   lexeme : LexemeHandle;
   diagnostic : DiagnosticHandle
 END; (* Symbol *)
 
 
-END M2Symbol.
+END Symbol.
