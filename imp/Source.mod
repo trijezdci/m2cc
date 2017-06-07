@@ -1,24 +1,32 @@
 (*!m2r10*) (* Copyright (c) 2015 B.Kowarsch. All rights reserved. *)
 
-IMPLEMENTATION MODULE M2Source;
+IMPLEMENTATION MODULE Source;
 
 (* Modula-2 Source File Reader *)
 
-IMPORT ASCII, SimpleFileIO, M2Params, M2LexTab;
+IMPORT ASCII, SimpleFileIO, BuildParams, LexTab;
 
+
+(* Source Type *)
 
 TYPE Source = POINTER TO SourceDescriptor;
 
+
+(* Source Descriptor *)
+
 TYPE SourceDescriptor = RECORD
-  index,                          (* lookahead index in source buffer *)
-  endPos,                         (* end position index in source buffer *)
-  lexPos : CARDINAL;              (* marked position index in source buffer *)
-  buffer : SourceBuffer;          (* source buffer with entire source *)
-  line : M2Params.LineCounter;    (* line counter for lookahead position *)
-  column : M2Params.ColumnCounter (* column counter for lookahead position *)
+  index,                        (* lookahead index in source buffer *)
+  endPos,                       (* end position index in source buffer *)
+  lexPos : CARDINAL;            (* marked position index in source buffer *)
+  buffer : SourceBuffer;        (* source buffer with entire source *)
+  line : BuildParams.LineCounter;    (* lookahead position line counter *)
+  column : BuildParams.ColumnCounter (* lookahead position column counter *)
 END;
 
-TYPE SourceBuffer = ARRAY M2Params.MaxSourceFileSize + 1 OF CHAR;
+
+(* Source Buffer *)
+
+TYPE SourceBuffer = ARRAY BuildParams.MaxSourceFileSize + 1 OF CHAR;
 (* always to be terminated by ASCII.NUL, therefore max index = size + 1 *)
 
 
@@ -90,7 +98,7 @@ TYPE SourceBuffer = ARRAY M2Params.MaxSourceFileSize + 1 OF CHAR;
  * ---------------------------------------------------------------------------
  *)
 PROCEDURE New
-  ( VAR s : Source; CONST filename : M2Filename; VAR status : Status );
+  ( VAR s : Source; CONST filename : Filename; VAR status : Status );
 (* Passes back a newly allocated source instance associated with name in s.
    The associated file is opened for reading and the lookahead position is
    set to the start position.  Passes back NIL in s if unsuccessful.
@@ -107,12 +115,12 @@ BEGIN
   IF s # NIL THEN
     status := Status.AllocTargetNotNil;
     RETURN
-  END;
+  END; (* IF *)
     
   IF FileSizeOf(filename) > MaxSourceFileSize THEN
     status := Status.SourceExceedsMaxFileSize;
     RETURN
-  END;
+  END; (* IF *)
   
   (* allocate source instance *)
   NEW(source);
@@ -141,7 +149,6 @@ BEGIN
   status := Status.Success;
   s := source;
 
-  RETURN  
 END New;
 
 
@@ -172,7 +179,7 @@ BEGIN
   (* pass LF instead of CR *)
   IF ch = ASCII.CR THEN
     ch := ASCII.LF
-  END;
+  END; (* IF *)
 
   (* pass new lookahead character *)
   next := s^.buffer[s^.index];
@@ -180,15 +187,14 @@ BEGIN
   (* pass LF instead of CR *)
   IF next := ASCII.CR THEN
     next := ASCII.LF
-  END;
+  END; (* IF *)
   
-  RETURN
 END GetChar;
   
 
 (* ---------------------------------------------------------------------------
- * procedure ConsumeChar ( source )
- *  consumes current lookahead character
+ * procedure consumeChar ( source )
+ *  consumes current lookahead character, returns new lookahead character
  * ---------------------------------------------------------------------------
  * pre-conditions:
  *  TO DO
@@ -200,7 +206,7 @@ END GetChar;
  *  TO DO
  * ---------------------------------------------------------------------------
  *)
-PROCEDURE ConsumeChar ( s : source );
+PROCEDURE consumeChar ( s : source );
 
 VAR
   ch : CHAR;
@@ -214,7 +220,7 @@ BEGIN
   IF s^.index <= s^.endPos THEN
     s^.index++
     
-  END;
+  END; (* IF *)
   
   (* check for new line *)
   IF (* new line *) (ch = ASCII.LF) OR (ch = ASCII.CR) THEN
@@ -226,16 +232,17 @@ BEGIN
       (* consume trailing LF *)
       s^.index++
       
-    END
+    END (* IF *)
     
   ELSE (* no new line *)
     (* update column counter only *)
     s^.column++
     
-  END
-    
-  RETURN
-END ConsumeChar;
+  END (* IF *)
+  
+  (* return new lookahead *)
+  RETURN ch
+END consumeChar;
 
 
 (* ---------------------------------------------------------------------------
@@ -267,7 +274,7 @@ BEGIN
   (* return LF instead of CR *)
   IF next = ASCII.CR THEN
     next := ASCII.LF
-  END;
+  END; (* IF *)
     
   RETURN next
 END lookaheadChar;
@@ -299,7 +306,7 @@ BEGIN
   (* return ASCII.NUL if lookahead is last character or beyond eof *)
   IF s^.index >= s^.endPos THEN
     RETURN ASCII.NUL
-  END;
+  END; (* IF *)
   
   (* get lookahead and tentative second lookahead *)
   next := s^.buffer[s^.index];
@@ -311,16 +318,16 @@ BEGIN
     (* return ASCII.NUL if CR LF is at the very end of source *)
     IF s^.index+1 >= s^.endPos THEN
       RETURN ASCII.NUL
-    END;
+    END; (* IF *)
     
     (* otherwise second lookahead is character after CR LF sequence  *)
     la2 := s^.buffer[s^.index+2]
-  END
+  END (* IF *)
   
   (* return LF instead of CR *)
   IF la2 = ASCII.CR THEN
     la2 := ASCII.LF
-  END;
+  END; (* IF *)
   
   RETURN la2
 END la2Char;
@@ -348,9 +355,8 @@ BEGIN
 
   s^.lexPos := s^.index;
   line := s^.line;
-  col := s^.column;
+  col := s^.column
 
-  RETURN
 END MarkLexeme;
 
 
@@ -389,9 +395,8 @@ BEGIN
   store(dict, s^.buffer, s^.lexPos, length, handle);
   
   (* clear lexeme marker by setting it beyond end position *)
-  s^.lexPos := s^.endPos + 1;
+  s^.lexPos := s^.endPos + 1
   
-  RETURN
 END CopyLexeme;
 
 
@@ -415,9 +420,8 @@ PROCEDURE GetLineAndColumn ( s : Source; VAR line, col : CARDINAL );
 BEGIN
 
   line := s^.line;
-  col := s^.column;
+  col := s^.column
 
-  RETURN
 END GetLineAndColumn;
 
 
@@ -462,17 +466,15 @@ PROCEDURE Release ( VAR s : Source; VAR status : Status );
 
 BEGIN
 
-  IF s = NIL THEN
-    status := invalidReference;
-    RETURN
-  END;
+  IF s # NIL THEN
+    RELEASE(s);
+    status := Status.Success;
+    s := NIL
+  ELSE
+    status := invalidReference
+  END (* IF *)
   
-  RELEASE(s);
-  status := Status.Success;
-  s := NIL;
-  
-  RETURN
 END Release;
 
 
-END M2Source.
+END Source.
