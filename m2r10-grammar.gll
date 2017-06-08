@@ -74,7 +74,7 @@ alias blueprintIdent = Ident ;
 /* Import */
 
 import :=
-  IMPORT ( impexLib ( ',' impexLib )* | libGenDirective )
+  IMPORT impexLib ( ',' impexLib )* | libGenDirective
   ;
 
 /* Import/Re-Export Library */
@@ -95,7 +95,13 @@ alias reExport := '+' ;
 /* Library Generation Directive */
 
 libGenDirective :=
-  GENLIB libIdent FROM template FOR substitution ( ';' substitution )* END
+  GENLIB libIdent FROM template FOR substitutionList END
+  ;
+
+/* Substitution List */
+
+substitutionList :=
+  substitution ( ';' substitution )*
   ;
 
 /* Template */
@@ -1276,16 +1282,34 @@ StringLiteral :=
 /* Quotable Character */
 
 .QuotableCharacter :=
-  Digit | Letter | Space | NonAlphaNumQuotable ;
+  Digit | Letter | Space | NonAlphaNumQuotable | EscapedCharacter ;
+
+/* Letter */
 
 .Letter := 'a' .. 'z' | 'A' .. 'Z' ;
 
+/* Whitespace */
+
 .Space := 0u20 ;
+
+/* Non-Alphanumeric Quotable Character */
 
 .NonAlphaNumQuotable :=
   '!' | '#' | '$' | '%' | '&' | '(' | ')' | '*' | '+' | ',' |
   '-' | '.' | '/' | ':' | ';' | '<' | '=' | '>' | '?' | '@' |
   '[' | '\' | ']' | '^' | '_' | '`' | '{' | '|' | '}' | '~'
+  ;
+
+/* Escaped Character */
+
+.EscapedCharacter :=
+  '\' ( 'n' | 't' | '\' )
+  ;
+
+/* Chevron Delimited Source Text */
+
+ChevronText :=
+  '<<' ( QuotableCharacter | "'" | '"' )* '>>'
   ;
 
 
@@ -1297,6 +1321,7 @@ Whitespace :=
   Space | Tabulator
   ;
 
+/* Tabulator */
 .Tabulator := 0u9 ;
 
 
@@ -1305,6 +1330,8 @@ Whitespace :=
 LineComment :=
   '!' AnyPrintable* EndOfLine
   ;
+
+/* Any Printable Character */
 
 .AnyPrintable := 0u20 .. 0u7E ; /* greedy */
 
@@ -1331,9 +1358,14 @@ EndOfLine :=
   LF | CR ( LF )?
   ;
 
+/* ASCII LF */
+
 .LF := 0uA ;
 
+/* ASCII CR */
+
 .CR := 0uD ;
+
 
 endg Modula2.
 
